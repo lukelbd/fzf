@@ -26,28 +26,28 @@ __fzfcmd() {
     echo "fzf-tmux -d${FZF_TMUX_HEIGHT:-40%}" || echo "fzf"
 }
 
-fzf-file-widget() {
+__fzf_file_widget() {
   LBUFFER="${LBUFFER}$(__fsel)"
   local ret=$?
   zle redisplay
   typeset -f zle-line-init >/dev/null && zle zle-line-init
   return $ret
 }
-zle     -N   fzf-file-widget
-bindkey '^T' fzf-file-widget
+zle     -N   __fzf_file_widget
+bindkey '^T' __fzf_file_widget
 
 # Ensure precmds are run after cd
-fzf-redraw-prompt() {
+__fzf_redraw_prompt() {
   local precmd
   for precmd in $precmd_functions; do
     $precmd
   done
   zle reset-prompt
 }
-zle -N fzf-redraw-prompt
+zle -N __fzf_redraw_prompt
 
 # ALT-C - cd into the selected directory
-fzf-cd-widget() {
+__fzf_cd_widget() {
   local cmd="${FZF_ALT_C_COMMAND:-"command find -L . -mindepth 1 \\( -path '*/\\.*' -o -fstype 'sysfs' -o -fstype 'devfs' -o -fstype 'devtmpfs' -o -fstype 'proc' \\) -prune \
     -o -type d -print 2> /dev/null | cut -b3-"}"
   setopt localoptions pipefail 2> /dev/null
@@ -58,15 +58,15 @@ fzf-cd-widget() {
   fi
   cd "$dir"
   local ret=$?
-  zle fzf-redraw-prompt
+  zle __fzf_redraw_prompt
   typeset -f zle-line-init >/dev/null && zle zle-line-init
   return $ret
 }
-zle     -N    fzf-cd-widget
-bindkey '\ec' fzf-cd-widget
+zle     -N    __fzf_cd_widget
+bindkey '\C-d' __fzf_cd_widget
 
 # CTRL-R - Paste the selected command from history into the command line
-fzf-history-widget() {
+__fzf_history_widget() {
   local selected num
   setopt localoptions noglobsubst noposixbuiltins pipefail 2> /dev/null
   selected=( $(fc -rl 1 |
@@ -82,7 +82,7 @@ fzf-history-widget() {
   typeset -f zle-line-init >/dev/null && zle zle-line-init
   return $ret
 }
-zle     -N   fzf-history-widget
-bindkey '^R' fzf-history-widget
+zle     -N   __fzf_history_widget
+bindkey '^R' __fzf_history_widget
 
 fi

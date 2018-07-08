@@ -14,6 +14,7 @@ if ! declare -f _fzf_compgen_path > /dev/null; then
   _fzf_compgen_path() {
     echo "$1"
     command find -L "$1" \
+    $FZF_COMPLETION_COMMAND_OPTS \
       -name .git -prune -o -name .svn -prune -o \( -type d -o -type f -o -type l \) \
       -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
   }
@@ -22,6 +23,7 @@ fi
 if ! declare -f _fzf_compgen_dir > /dev/null; then
   _fzf_compgen_dir() {
     command find -L "$1" \
+    $FZF_COMPLETION_COMMAND_OPTS \
       -name .git -prune -o -name .svn -prune -o -type d \
       -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
   }
@@ -155,9 +157,14 @@ __fzf_generic_path_completion() {
         leftover=${leftover/#\/}
         [ -z "$dir" ] && dir='.'
         [ "$dir" != "/" ] && dir="${dir/%\//}"
+        # NOTE: Changed functionality here
+        # This line seems to print out sinlge (or multiple) selections chosen by user
+        # How in the fuck did the writers not think of this; just make the suffix
+        # dependent on whether or not the item is a directory -- if so, slash, if not, space
+        # printf "%q$3 " "$item"
         matches=$(eval "$1 $(printf %q "$dir")" | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $2 -q "$leftover" | while read -r item; do
-          printf "%q$3 " "$item"
-        done)
+          [ -d "$item" ] && printf "%q/ " "$item" || printf "%q  " "$item"
+          done)
         matches=${matches% }
         [[ -z "$3" ]] && [[ "$__fzf_nospace_commands" = *" ${COMP_WORDS[0]} "* ]] && matches="$matches "
         if [ -n "$matches" ]; then
@@ -165,7 +172,7 @@ __fzf_generic_path_completion() {
         else
           COMPREPLY=( "$cur" )
         fi
-        printf '\e[5n'
+        printf '\e[5n' # redraws terminal line (and possibly uses compreply?)
         return 0
       fi
       dir=$(dirname "$dir")
@@ -205,7 +212,8 @@ _fzf_complete() {
   fi
 }
 
-_fzf_path_completion() {
+_fzf_path_completion() { # NOTE now argument 3 does nothing; suffix determined by test
+  # the below functions just receives 'name' of completion generator function (which calls a find command)
   __fzf_generic_path_completion _fzf_compgen_path "-m" "" "$@"
 }
 
@@ -214,8 +222,8 @@ _fzf_file_completion() {
   _fzf_path_completion "$@"
 }
 
-_fzf_dir_completion() {
-  __fzf_generic_path_completion _fzf_compgen_dir "" "/" "$@"
+_fzf_dir_completion() { # NOTE now argument 3 does nothing; suffix determined by test
+  __fzf_generic_path_completion _fzf_compgen_dir "" "" "$@"
 }
 
 _fzf_complete_kill() {
@@ -271,6 +279,7 @@ complete -o default -F _fzf_opts_completion fzf
 
 d_cmds="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}"
 a_cmds="
+  $FZF_COMPLETION_FILE_COMMANDS
   awk cat diff diff3
   emacs emacsclient ex file ftp g++ gcc gvim head hg java
   javac ld less more mvim nvim patch perl python ruby
@@ -306,8 +315,11 @@ _fzf_defc() {
 }
 
 # Anything
+# NOTE we add our own spaces, so make sure to tell complete to use nospace
 for cmd in $a_cmds; do
-  _fzf_defc "$cmd" _fzf_path_completion "-o default -o bashdefault"
+  _fzf_defc "$cmd" _fzf_path_completion " -o nospace -o default -o bashdefault"
+  # _fzf_defc "$cmd" _fzf_path_completion "-o dirnames -o nospace -o default -o bashdefault"
+  # _fzf_defc "$cmd" _fzf_path_completion "-o nospace -o dirnames"
 done
 
 # Directory

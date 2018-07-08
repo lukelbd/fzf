@@ -5,8 +5,10 @@ __fzf_select__() {
     -o -type f -print \
     -o -type d -print \
     -o -type l -print 2> /dev/null | cut -b3-"}"
+  # NOTE: Changed functionality here
   eval "$cmd" | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_CTRL_T_OPTS" fzf -m "$@" | while read -r item; do
-    printf '%q ' "$item"
+    # printf '%q ' "$item"
+    [ -d "$item" ] && printf "%q/" "$item" || printf "%q " "$item"
   done
   echo
 }
@@ -31,10 +33,10 @@ __fzf_select_tmux__() {
     height="-l $height"
   fi
 
-  tmux split-window $height "cd $(printf %q "$PWD"); FZF_DEFAULT_OPTS=$(printf %q "$FZF_DEFAULT_OPTS") PATH=$(printf %q "$PATH") FZF_CTRL_T_COMMAND=$(printf %q "$FZF_CTRL_T_COMMAND") FZF_CTRL_T_OPTS=$(printf %q "$FZF_CTRL_T_OPTS") bash -c 'source \"${BASH_SOURCE[0]}\"; RESULT=\"\$(__fzf_select__ --no-height)\"; tmux setb -b fzf \"\$RESULT\" \\; pasteb -b fzf -t $TMUX_PANE \\; deleteb -b fzf || tmux send-keys -t $TMUX_PANE \"\$RESULT\"'"
+  tmux split-window $height "cd $(printf %q "$PWD"); FZF_DEFAULT_OPTS=$(printf %q "$FZF_DEFAULT_OPTS") PATH=$(printf %q "$PATH") FZF_CTRL_T_COMMAND=$(printf %q "$FZF_CTRL_T_COMMAND") FZF_CTRL_T_OPTS=$(printf %q "$FZF_CTRL_T_OPTS") bash -c 'source \"${BASH_SOURCE[0]}\"; RESULT=\"\$(__fzf_select__ --no-height)\"; tmux setb -b fzf \"\$RESULT\" \\; pasteb -b fzf -t $TMUX_PANE \\; deleteb -b fzf || tmux send-keys -t $TMUX_PANE \"\$RESULT\" '"
 }
 
-fzf-file-widget() {
+__fzf_file_widget() {
   if __fzf_use_tmux__; then
     __fzf_select_tmux__
   else
@@ -72,7 +74,7 @@ if [[ ! -o vi ]]; then
 
   # CTRL-T - Paste the selected file path into the command line
   if [ $BASH_VERSINFO -gt 3 ]; then
-    bind -x '"\C-t": "fzf-file-widget"'
+    bind -x '"\C-t": "__fzf_file_widget"'
   elif __fzf_use_tmux__; then
     bind '"\C-t": " \C-u \C-a\C-k`__fzf_select_tmux__`\e\C-e\C-y\C-a\C-d\C-y\ey\C-h"'
   else
@@ -101,7 +103,7 @@ else
   # CTRL-T - Paste the selected file path into the command line
   # - FIXME: Selected items are attached to the end regardless of cursor position
   if [ $BASH_VERSINFO -gt 3 ]; then
-    bind -x '"\C-t": "fzf-file-widget"'
+    bind -x '"\C-t": "__fzf_file_widget"'
   elif __fzf_use_tmux__; then
     bind '"\C-t": "\C-x\C-a$a \C-x\C-addi`__fzf_select_tmux__`\C-x\C-e\C-x\C-a0P$xa"'
   else
