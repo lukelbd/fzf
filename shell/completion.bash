@@ -140,7 +140,7 @@ _fzf_handle_dynamic_completion() {
 }
 
 __fzf_generic_path_completion() {
-  local cur base dir leftover matches trigger cmd fzf
+  local cur base dir leftover matches trigger cmd fzf end
   fzf="$(__fzfcmd_complete)"
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
   COMPREPLY=()
@@ -158,12 +158,12 @@ __fzf_generic_path_completion() {
         [ -z "$dir" ] && dir='.'
         [ "$dir" != "/" ] && dir="${dir/%\//}"
         # NOTE: Changed functionality here
-        # This line seems to print out sinlge (or multiple) selections chosen by user
-        # How in the fuck did the writers not think of this; just make the suffix
-        # dependent on whether or not the item is a directory -- if so, slash, if not, space
-        # printf "%q$3 " "$item"
+        # This line seems to print out single (or multiple) selections chosen by user
+        # Just make the suffix dependent on whether or not the item is a directory -- if so,
+        # slash, if not, space
         matches=$(eval "$1 $(printf %q "$dir")" | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $2 -q "$leftover" | while read -r item; do
-          [ -d "$item" ] && printf "%q/ " "$item" || printf "%q  " "$item"
+          [ -d "$item" ] && end="/" || end=" "
+          printf "%q$end " "$item"
           done)
         matches=${matches% }
         [[ -z "$3" ]] && [[ "$__fzf_nospace_commands" = *" ${COMP_WORDS[0]} "* ]] && matches="$matches "
@@ -172,7 +172,7 @@ __fzf_generic_path_completion() {
         else
           COMPREPLY=( "$cur" )
         fi
-        printf '\e[5n' # redraws terminal line (and possibly uses compreply?)
+        printf '\e[5n' # redraws terminal line
         return 0
       fi
       dir=$(dirname "$dir")
@@ -188,8 +188,8 @@ __fzf_generic_path_completion() {
 
 _fzf_complete() {
   local cur selected trigger cmd fzf post
-  post="$(caller 0 | awk '{print $2}')_post"
-  type -t "$post" > /dev/null 2>&1 || post=cat
+  post="$(caller 0 | awk '{print $2}')_post"   # the filename, with a _post suffix
+  type -t "$post" > /dev/null 2>&1 || post=cat # empty
   fzf="$(__fzfcmd_complete)"
 
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
@@ -201,7 +201,6 @@ _fzf_complete() {
     selected=$(cat | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $1 -q "$cur" | $post | tr '\n' ' ')
     selected=${selected% } # Strip trailing space not to repeat "-o nospace"
     printf '\e[5n'
-
     if [ -n "$selected" ]; then
       COMPREPLY=("$selected")
       return 0
