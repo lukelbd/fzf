@@ -64,7 +64,7 @@ _fzf_compgen_dir() {
     $FZF_COMPLETION_FIND_OPTS \
     -name .git -prune -o -name .svn -prune -o -type d \
     -a -not \( $(_fzf_ignore $FZF_COMPLETION_FIND_IGNORE) \) \
-    -a \( $(_fzf_ignore $FZF_COMPLETION_FIND_INCLUDE) \) \
+    -a \( $(_fzf_include $FZF_COMPLETION_FIND_INCLUDE) \) \
     -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
 }
 # fi
@@ -192,7 +192,6 @@ __fzf_generic_path_completion() {
   if [[ "$cur" == *"$trigger" ]]; then
     base=${cur:0:${#cur}-${#trigger}}
     eval "base=$base"
-
     [[ $base = *"/"* ]] && dir="$base"
     while true; do
       if [ -z "$dir" ] || [ -d "$dir" ]; then
