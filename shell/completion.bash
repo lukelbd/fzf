@@ -183,7 +183,7 @@ _fzf_handle_dynamic_completion() {
 
 # NOTE now takes just two arguments -- the compgen command, and fzf options
 __fzf_generic_path_completion() {
-  local cur base dir leftover matches trigger cmd fzf
+  local cur base dir leftover matches trigger cmd fzf end
   fzf="$(__fzfcmd_complete)"
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
   COMPREPLY=()
@@ -218,7 +218,7 @@ __fzf_generic_path_completion() {
         else
           COMPREPLY=( "$cur" )
         fi
-        printf '\e[5n' # redraws terminal line (and possibly uses compreply?)
+        printf '\e[5n' # redraws terminal line
         return 0
       fi
       dir=$(dirname "$dir")
@@ -233,8 +233,8 @@ __fzf_generic_path_completion() {
 
 _fzf_complete() {
   local cur selected trigger cmd fzf post
-  post="$(caller 0 | awk '{print $2}')_post"
-  type -t "$post" > /dev/null 2>&1 || post=cat
+  post="$(caller 0 | awk '{print $2}')_post"   # the filename, with a _post suffix
+  type -t "$post" > /dev/null 2>&1 || post=cat # empty
   fzf="$(__fzfcmd_complete)"
 
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
@@ -246,7 +246,6 @@ _fzf_complete() {
     selected=$(cat | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $1 -q "$cur" | $post | tr '\n' ' ')
     selected=${selected% } # Strip trailing space not to repeat "-o nospace"
     printf '\e[5n'
-
     if [ -n "$selected" ]; then
       COMPREPLY=("$selected")
       return 0
