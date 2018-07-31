@@ -2,6 +2,7 @@
 .fzf.bash
 .fzf.zsh
 .session.vim
+.vimsession
 # original ignore
 bin/fzf
 bin/fzf.exe
