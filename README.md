@@ -11,8 +11,9 @@ There are potentially other changes that need to be documented. And more work ne
 ## Installation
 To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`.
 
-[//]: # (<img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf))
-<!-- === -->
+**Note** this may no longer be necessary; for the time being I've changed the default branch to `completion`. May need to change back when doing pull requests and whatnot.
+
+<!-- <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf) -->
 
 # FZF
 
