@@ -181,7 +181,7 @@ _fzf_handle_dynamic_completion() {
   fi
 }
 
-# NOTE now takes just two arguments -- the compgen command, and fzf options
+# lukelbd: now takes just two arguments -- the compgen command, and fzf options
 __fzf_generic_path_completion() {
   local cur base dir leftover matches trigger cmd fzf end
   fzf="$(__fzfcmd_complete)"
@@ -199,9 +199,10 @@ __fzf_generic_path_completion() {
         leftover=${leftover/#\/}
         [ -z "$dir" ] && dir='.'
         # [ "$dir" != "/" ] && dir="${dir/%\//}"
-        # NOTE: Changed functionality here
-        # Make suffix dependent on whether or not the item is a directory -- if so, slash, if not, space
-        # Note the compgen function should echo the original command, so it can be put back into shell
+        # lukelbd: Changed functionality here: make suffix dependent on whether
+        # or not the item is a directory -- if so, slash, if not, space
+        # lukelbd the compgen function should echo the original command, so
+        # it can be put back into shell
         count=0
         matches=$(eval "$1 $(printf %q "$dir")" | tr -s '/' | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $2 -q "$leftover" | while read -r item; do
           let count+=1
@@ -256,8 +257,9 @@ _fzf_complete() {
 }
 
 _fzf_path_completion() {
-  # NOTE now argument 3 does nothing; suffix determined by test
-  # the below functions just receives 'name' of completion generator function (which calls a find command)
+  # lukelbd: now argument 3 does nothing; suffix determined by test
+  # the below functions just receives 'name' of completion generator
+  # function (which calls a find command)
   __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
 }
 
@@ -267,7 +269,7 @@ _fzf_file_completion() {
 }
 
 _fzf_dir_completion() {
-  # NOTE now argument 3 does nothing; suffix determined by test
+  # lukelbd: now argument 3 does nothing; suffix determined by test
   __fzf_generic_path_completion _fzf_compgen_dir "" "$@"
 }
 

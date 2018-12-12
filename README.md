@@ -1,3 +1,12 @@
+# More natural tab completion
+## Description
+I made several changes to the default repo. Now you can replace builtin tab completion with **non-recursive fzf completion**, and it feels natural. I found that most of the time, this was what I wanted. Use <kbd>Ctrl+f</kbd> and <kbd>Ctrl+t</kbd> like normal to use **recursive** path completion. This was done by modifying the `bash` shell completion and key bindings scripts.
+
+I have also made changes that make life easier when syncing fzf settings across servers. This was done by modifying the install script.
+
+## Installation
+To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`.
+
 <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf)
 ===
 

@@ -5,7 +5,8 @@ __fzf_select__() {
     -o -type f -print \
     -o -type d -print \
     -o -type l -print 2> /dev/null | cut -b3-"}"
-  # NOTE: Changed functionality here
+  # lukelbd: changed functionality here, by default complete directories with
+  # trailing slash so we can repeatedly tab-complete individual directories
   eval "$cmd" | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_CTRL_T_OPTS" fzf -m "$@" | while read -r item; do
     # printf '%q ' "$item"
     [ -d "$item" ] && printf "%q/" "$item" || printf "%q " "$item"
