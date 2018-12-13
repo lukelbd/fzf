@@ -1,6 +1,4 @@
 # custom ignores
-.fzf.bash
-.fzf.zsh
 .vimsession
 # original ignore
 bin/fzf

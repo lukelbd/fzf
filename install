@@ -9,13 +9,11 @@ update_config=2
 binary_arch=
 allow_legacy=
 shells="bash zsh fish"
-prefix='$HOME/.fzf/.fzf'
 base='$HOME/.fzf'      # will use environment variables
 base_expand=$HOME/.fzf # expanded
-prefix_expand=$HOME/.fzf/.fzf # destination is this directory
-prefix_target=$HOME/.fzf      # prefix for target name
-prefix_source=.fzf/.fzf       # prefix for symlink target; will place in prefix_target
-fish_source=../../.fzf        # loction for symlink in $HOME/.config/fish to point
+prefix='$HOME/.fzf'
+prefix_expand=$HOME/.fzf # destination is this directory
+fish_source=../../.fzf # loction for symlink in ~/.config/fish to point
 fish_dir=${XDG_CONFIG_HOME:-$HOME/.config}/fish
 
 help() {
@@ -282,8 +280,6 @@ $fzf_completion
 $fzf_key_bindings
 
 EOF
-  # Put symlink in home directory, actual script here? Or not.
-  # ln -sf ${prefix_source}.${shell} ${prefix_target}.${shell}
   echo "OK"
 done
 
