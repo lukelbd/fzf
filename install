@@ -9,10 +9,10 @@ update_config=2
 binary_arch=
 allow_legacy=
 shells="bash zsh fish"
-base='~/.fzf'      # will use environment variables
-base_expand=~/.fzf # expanded
-prefix='~/.fzf'
-prefix_expand=~/.fzf # destination is this directory
+base='$HOME/.fzf'      # note these *must* be $HOME, not ~; had expansion issues
+base_expand=$HOME/.fzf # expanded
+prefix='$HOME/.fzf'
+prefix_expand=$HOME/.fzf # destination is this directory
 fish_source=../../.fzf # loction for symlink in ~/.config/fish to point
 fish_dir=${XDG_CONFIG_HOME:-$HOME/.config}/fish
 
