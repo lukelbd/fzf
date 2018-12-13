@@ -282,7 +282,8 @@ $fzf_completion
 $fzf_key_bindings
 
 EOF
-  ln -sf ${prefix_source}.${shell} ${prefix_target}.${shell}
+  # Put symlink in home directory, actual script here? Or not.
+  # ln -sf ${prefix_source}.${shell} ${prefix_target}.${shell}
   echo "OK"
 done
 
