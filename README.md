@@ -1,5 +1,4 @@
-# More natural tab completion
-## Description
+# Fuzzy tab completion
 I made several changes to the default repo. Now you can replace builtin tab completion with **non-recursive fzf completion**, and it feels natural. I found that most of the time, this was what I wanted. Use <kbd>Ctrl+f</kbd> and <kbd>Ctrl+t</kbd> like normal to use **recursive** path completion. This was done by modifying the `bash` shell completion and key bindings scripts.
 
 I have also made changes that make life easier when syncing fzf settings across servers. This was done by modifying the install script.
