@@ -6,12 +6,12 @@ I have also made changes that make life easier when syncing fzf settings across 
 
 Finally, I now make FZF store the shell setup scripts right in this directory, add them to `.gitignore`, and symlink to them from the home directory. Thought this made FZF nicely self-contained.
 
-There are potentially other changes that need to be documented. And more work needs to be done.
+Note some changes have not yet been documented. To install, simply clone the repository. The default branch has been changed to the `completion` branch, on which these features were developed.
+<!-- There are potentially other changes that need to be documented. And more work needs to be done. -->
 
-## Installation
-To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`.
-
-**Note** this may no longer be necessary; for the time being I've changed the default branch to `completion`. May need to change back when doing pull requests and whatnot.
+<!-- ## Installation -->
+<!-- To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`. -->
+<!-- **Note** this may no longer be necessary; for the time being I've changed the default branch to `completion`. May need to change back when doing pull requests and whatnot. -->
 
 <!-- <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf) -->
 
