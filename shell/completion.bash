@@ -123,7 +123,7 @@ __fzf_generic_path_completion() {
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
   COMPREPLY=()
   trigger=${FZF_COMPLETION_TRIGGER-'**'}
-  cur="${COMP_WORDS[COMP_CWORD]}" # cmd line word under cursor
+  [ ${#COMP_WORDS[@]} -ge 1 ] && cur="${COMP_WORDS[COMP_CWORD]}" # cmd line word under cursor
   # Complete paths and variables
   varcomp=false
   [[ "$cur" == '$'* ]] && varcomp=true
@@ -222,17 +222,15 @@ if type _completion_loader > /dev/null 2>&1; then
   _fzf_completion_loader=1
 fi
 
-# When line empty, perform no completion (empty options)
-complete -E
-
 # Generic path completion
 # Function to pass to 'complete -F [function]', receive command line
 # text. Arg 1 is worker function, arg 2 are fzf executable commands.
 # NOTE: Flag -m enables multi-select, +m disables it
+# TODO: Cannot figure out how to make this work when typing naked pathname
 _fzf_path_completion() {
   __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
 }
-complete -D -F _fzf_path_completion -o nospace -o default -o bashdefault # ideal, but this seems to break stuff
+complete -DE -F _fzf_path_completion -o nospace -o default -o bashdefault # ideal, but this seems to break stuff
 
 # Directory name completion
 # TODO: Disable the environment variables
