@@ -8,7 +8,7 @@
 # - $FZF_TMUX_HEIGHT        (default: '40%')
 # - $FZF_COMPLETION_TRIGGER (default: '**')
 # - $FZF_COMPLETION_OPTS    (default: empty)
-
+#
 ################################################################################
 # lukelbd edits: summary
 # * Goal is to set completion trigger to '' (always on), bind tab key to 'cancel', and
@@ -73,11 +73,7 @@ _fzf_compgen_dir() {
 # To redraw line after fzf closes (printf '\e[5n')
 bind '"\e[0n": redraw-current-line'
 
-__fzfcmd_complete() {
-  [ -n "$TMUX_PANE" ] && [ "${FZF_TMUX:-0}" != 0 ] && [ ${LINES:-40} -gt 15 ] &&
-    echo "fzf-tmux -d${FZF_TMUX_HEIGHT:-40%}" || echo "fzf"
-}
-
+# Fallback completion function
 __fzf_orig_completion_filter() {
   # Records _fzf_orig_completion_<command>="complete <opts> -F function #<command>"
   # Also if has a 'nospace' option, and not already in the string, add to __fzf_nospace_commands string
@@ -85,77 +81,8 @@ __fzf_orig_completion_filter() {
   awk -F= '{OFS = FS} {gsub(/[^A-Za-z0-9_= ;]/, "_", $1);}1'
 }
 
-_fzf_opts_completion() {
-  local cur prev opts
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  prev="${COMP_WORDS[COMP_CWORD-1]}"
-  opts="
-    -x --extended
-    -e --exact
-    --algo
-    -i +i
-    -n --nth
-    --with-nth
-    -d --delimiter
-    +s --no-sort
-    --tac
-    --tiebreak
-    -m --multi
-    --no-mouse
-    --bind
-    --cycle
-    --no-hscroll
-    --jump-labels
-    --height
-    --literal
-    --reverse
-    --margin
-    --inline-info
-    --prompt
-    --header
-    --header-lines
-    --ansi
-    --tabstop
-    --color
-    --no-bold
-    --history
-    --history-size
-    --preview
-    --preview-window
-    -q --query
-    -1 --select-1
-    -0 --exit-0
-    -f --filter
-    --print-query
-    --expect
-    --sync"
-
-  case "${prev}" in
-  --tiebreak)
-    COMPREPLY=( $(compgen -W "length begin end index" -- "$cur") )
-    return 0
-    ;;
-  --color)
-    COMPREPLY=( $(compgen -W "dark light 16 bw" -- "$cur") )
-    return 0
-    ;;
-  --history)
-    COMPREPLY=()
-    return 0
-    ;;
-  esac
-
-  if [[ "$cur" =~ ^-|\+ ]]; then
-    COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
-    return 0
-  fi
-
-  return 0
-}
-
 _fzf_handle_dynamic_completion() {
-  local cmd orig_var orig ret orig_cmd orig_complete
+  local cmd ret orig orig_var orig_cmd orig_complete
   cmd="$1"
   shift
   orig_cmd="$1"
@@ -178,6 +105,12 @@ _fzf_handle_dynamic_completion() {
     fi
     return $ret
   fi
+}
+
+# Completion function
+__fzfcmd_complete() {
+  [ -n "$TMUX_PANE" ] && [ "${FZF_TMUX:-0}" != 0 ] && [ ${LINES:-40} -gt 15 ] &&
+    echo "fzf-tmux -d${FZF_TMUX_HEIGHT:-40%}" || echo "fzf"
 }
 
 # lukelbd: Now takes just two arguments -- the compgen command, and fzf options
@@ -236,7 +169,7 @@ __fzf_generic_path_completion() {
       dir=$(dirname "$dir")
       [[ "$dir" =~ /$ ]] || dir="$dir"/
     done
-  # lukelbd: Trigger not active, defer to default completion
+  # Trigger not active, defer to default completion
   else
     shift
     shift
@@ -246,12 +179,14 @@ __fzf_generic_path_completion() {
 
 _fzf_complete() {
   local cur selected trigger cmd fzf post
-  post="$(caller 0 | awk '{print $2}')_post"   # the filename, with a _post suffix
+  post="$(caller 0 | awk '{print $2}')_post"   # the func name, with a _post suffix
   type -t "$post" > /dev/null 2>&1 || post=cat # empty
   fzf="$(__fzfcmd_complete)"
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
   trigger=${FZF_COMPLETION_TRIGGER-'**'}
   cur="${COMP_WORDS[COMP_CWORD]}"
+  # Trigger active, collect standard input (the lone 'cat') and
+  # run fzf with those options
   if [[ "$cur" == *"$trigger" ]]; then
     cur=${cur:0:${#cur}-${#trigger}}
     selected=$(cat | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $1 -q "$cur" | $post | tr '\n' ' ')
@@ -261,28 +196,22 @@ _fzf_complete() {
       COMPREPLY=( "$selected" )
       return 0
     fi
+  # Trigger not active, defer to default completion
   else
     shift
     _fzf_handle_dynamic_completion "$cmd" "$@"
   fi
 }
 
-# lukelbd: Now argument 3 does nothing; suffix determined by test
-# Just receive 'name' of completion generator function which calls a find command
-# NOTE: The arg 2 '-' are additional fzf command line opts; '-m' means enable
-# multi select (not a big deal if enabled when usually not necessary).
+# Functions to pass to 'complete -F [function]', receive command line
+# text. Arg 1 is worker function, arg 2 are fzf executable commands.
+# NOTE: Flag -m enables multi-select, +m disables it
 _fzf_path_completion() {
   __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
 }
 
-# lukelbd: Deprecated. No file only completion.
-_fzf_file_completion() {
-  _fzf_path_completion "$@"
-}
-
-# lukelbd: Deprecaed. No dir only completion.
 _fzf_dir_completion() {
-  __fzf_generic_path_completion _fzf_compgen_dir "" "$@"
+  __fzf_generic_path_completion _fzf_compgen_dir "+m" "$@"
 }
 
 ###########################################################
@@ -336,8 +265,62 @@ _fzf_complete_unalias() {
   )
 }
 
-# fzf options
-complete -o default -F _fzf_opts_completion fzf
+_fzf_opts_completion() {
+  # lukelbd: Chang default behavior, now always complete options whether
+  # or not dash on line, and always use fuzzy complete
+  local cur prev opts
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+  case "${prev}" in
+    --tiebreak) opts="length begin end index" ;;
+    --color)    opts="dark light 16 bw"       ;;
+    *)          opts="
+    -x --extended
+    -e --exact
+    --algo
+    -i +i
+    -n --nth
+    --with-nth
+    -d --delimiter
+    +s --no-sort
+    --tac
+    --tiebreak
+    -m --multi
+    --no-mouse
+    --bind
+    --cycle
+    --no-hscroll
+    --jump-labels
+    --height
+    --literal
+    --reverse
+    --margin
+    --inline-info
+    --prompt
+    --header
+    --header-lines
+    --ansi
+    --tabstop
+    --color
+    --no-bold
+    --history
+    --history-size
+    --preview
+    --preview-window
+    -q --query
+    -1 --select-1
+    -0 --exit-0
+    -f --filter
+    --print-query
+    --expect
+    --sync"
+  esac
+  _fzf_complete '-m' "$@" < <(compgen -W "$opts")
+}
+complete -F _fzf_opts_completion fzf
+# complete -o default -F _fzf_opts_completion fzf
+
 
 ###########################################################
 # lukelbd: Custom 'special' overrides
@@ -345,12 +328,15 @@ complete -o default -F _fzf_opts_completion fzf
 _fzf_special="shopt help man type which bind alias unalias function git cdo"
 for _command in $_fzf_special; do
   # Generating function for special commands
+  # NOTE: The compgen -c command is slow, so we cache result
   # _find="find . -maxdepth 1 -mindepth 1 | sed 's:^\\./::'"
   case $_command in
     shopt)
       _generator="shopt | cut -d' ' -f1 | cut -d$'\\t' -f1" ;;
     help|man|type|which)
-      _generator="cat \$HOME/.commands | grep -v '[!.:]'" ;; # faster than loading every time
+      ! [ -r $HOME/.commands ] && compgen -c | grep -v '[!.:{}]' >$HOME/.commands
+      _generator="cat \$HOME/.commands" ;;
+      # _generator="compgen -c | grep -v '[!.:{}]'" ;;
     unalias|alias)
       _generator="compgen -a" ;;
     bind)
@@ -437,14 +423,12 @@ _fzf_defc() {
 # Default completion; now use the -D flag instead of enumerating commands
 # Trying to get completion to work for all environment variables, just whenever
 # you start a word with dollar sign.
+complete -E # when line empty, perform no complection (options empty)
 complete -D -F _fzf_path_completion -o nospace -o default -o bashdefault # ideal, but this seems to break stuff
 for cmd in $d_cmds; do
   _fzf_defc "$cmd" _fzf_dir_completion "-o nospace -o dirnames"
 done
 # _fzf_defc "$cmd" _fzf_path_completion "-o default -o bashdefault" # original a_cmds loop
-
-# Remove helper
-unset _fzf_defc
 
 # Kill completion
 complete -F _fzf_complete_kill -o nospace -o default -o bashdefault kill
@@ -458,4 +442,5 @@ complete -F _fzf_complete_unset -o default -o bashdefault unset
 complete -F _fzf_complete_export -o default -o bashdefault export
 complete -F _fzf_complete_unalias -o default -o bashdefault unalias
 
+unset _fzf_defc
 unset cmd d_cmds a_cmds x_cmds
