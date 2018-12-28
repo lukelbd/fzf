@@ -1,9 +1,9 @@
 # Fuzzy tab completion
-I made several changes to the default repo. Now you can replace builtin tab completion with **non-recursive fzf completion**, and it feels natural. I found that most of the time, this was what I wanted. Use <kbd>Ctrl+f</kbd> and <kbd>Ctrl+t</kbd> like normal to use **recursive** path completion. This was done by modifying the `bash` shell completion and key bindings scripts.
+I created a new branch of `fzf` to make several useful changes. You can now **entirely** replace builtin bash tab completion with **non-recursive FZF completion**, and it feels natural. This replaces the default configuration, where `**` is required to activate FZF fuzzy complete for most commands (the logic being, FZF would be reserved for recursive searching only), and this is only enabled for a few select commands.
 
-I have also made changes that make life easier when syncing fzf settings across servers. This was done by modifying the install script.
+You can also use <kbd>Ctrl+f</kbd> and <kbd>Ctrl+t</kbd> like normal to use **recursive** path completion. This was done by modifying the `bash` shell completion and key bindings scripts.
 
-Finally, I now make FZF store the shell setup scripts right in this directory, add them to `.gitignore`, and symlink to them from the home directory. Thought this made FZF nicely self-contained.
+I have also made some changes that help syncing FZF settings across servers. This was done by modifying the install script.
 
 Note some changes have not yet been documented. To install, simply clone the repository. The default branch has been changed to the `completion` branch, on which these features were developed.
 <!-- There are potentially other changes that need to be documented. And more work needs to be done. -->
