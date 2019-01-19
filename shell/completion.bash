@@ -8,25 +8,28 @@
 # - $FZF_TMUX_HEIGHT        (default: '40%')
 # - $FZF_COMPLETION_TRIGGER (default: '**')
 # - $FZF_COMPLETION_OPTS    (default: empty)
-
+#
 ################################################################################
 # lukelbd edits: summary
-# * Goal is to set completion trigger to '' (always on), bind tab key to 'cancel', and
-#   use the completion option 'maxdepth 1' -- this enables us to succissively toggle
-#   completion on and off with tab, and lets us fuzzy search the depth-1 directory contents.
-# * To make this more similar to bash completion, have modified __fzf_generic_path_completion
-#   to *test* whether an entry is a directory or file. If it is a directory, we append it with
-#   a slash (and no space, like in _fzf_dir_completion). If it is a file, we append it with
-#   zero space. That way if you select a directory, you can immediately press tab again
-#   to search *this* directory. This can be *critical* for huge directory trees (e.g. $HOME).
-# * Inicidentally this means a complete command invoking __fzf_generic_path_completion
-#   must *always* be called with the option -o nospace -- spaces are added dynamically if the
-#   item is not a directory.
-# * We also have added FZF_COMPLETION_FILE_COMMANDS just like the default one
-#   FZF_COMPLETION_DIR_COMMANDS. I set that to a giant honking list of every
-#   executable on my path on startup, so that it triggers for all of them.
+# * Goal is to set completion trigger to '' (always on), bind tab key to
+#   'cancel', and use the completion option 'maxdepth 1' -- this enables us
+#   to succissively toggle completion on and off with tab, and lets us fuzzy
+#   search the depth-1 directory contents.
+# * To make this more similar to bash completion, have modified
+#   __fzf_generic_path_completion to *test* whether an entry is a directory
+#   or file. If it is a directory, we append it with a slash (and no space,
+#   like in _fzf_dir_completion). If it is a file, we append it with zero
+#   space. That way if you select a directory, you can immediately press tab
+#   again to search *this* directory. This can be *critical* for huge
+#   directory trees (e.g. $HOME).
+# * Inicidentally this means a complete command invoking
+#   __fzf_generic_path_completion must *always* be called with the option
+#   -o nospace -- spaces are added dynamically if the item is not a directory.
 ################################################################################
 
+###########################################################
+# General functions, helper functions
+###########################################################
 # Function for parsing new command-line option -- list of files to ignore
 # For example, .DS_Store
 _fzf_ignore() {
@@ -46,12 +49,10 @@ _fzf_include() {
 }
 
 # To use custom commands instead of find, override _fzf_compgen_{path,dir}
-# They should accept one argument -- the base directory
-# if ! declare -f _fzf_compgen_path > /dev/null; then
+# They accept one argument -- the base directory
+# Below prunes results in git directories, enforces some user variables,
+# prunes input directory itself from find result, and remove leading './'
 _fzf_compgen_path() {
-  # Says prune results in .git directory; this is an *action* that always returns true
-  # The final -o (or) verifies the object is a directory, file or link
-  # The -a (and) excludes the original path input
   command find -L "$1" \
     $FZF_COMPLETION_FIND_OPTS \
     -name .git -prune -o -name .svn -prune -o \( -type d -o -type f -o -type l \) \
@@ -59,9 +60,7 @@ _fzf_compgen_path() {
     -a \( $(_fzf_include $FZF_COMPLETION_FIND_INCLUDE) \) \
     -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
 }
-# fi
 
-# if ! declare -f _fzf_compgen_dir > /dev/null; then
 _fzf_compgen_dir() {
   command find -L "$1" \
     $FZF_COMPLETION_FIND_OPTS \
@@ -70,31 +69,227 @@ _fzf_compgen_dir() {
     -a \( $(_fzf_include $FZF_COMPLETION_FIND_INCLUDE) \) \
     -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
 }
-# fi
-
-###########################################################
 
 # To redraw line after fzf closes (printf '\e[5n')
 bind '"\e[0n": redraw-current-line'
 
-__fzfcmd_complete() {
-  [ -n "$TMUX_PANE" ] && [ "${FZF_TMUX:-0}" != 0 ] && [ ${LINES:-40} -gt 15 ] &&
-    echo "fzf-tmux -d${FZF_TMUX_HEIGHT:-40%}" || echo "fzf"
-}
-
+# Fallback completion function
 __fzf_orig_completion_filter() {
-  # Records _fzf_orig_completion_<command>="complete <opts> -F function #<command>"
+  # Records _fzf_orig_completion_[command]="complete <opts> -F function #<command>"
   # Also if has a 'nospace' option, and not already in the string, add to __fzf_nospace_commands string
   sed 's/^\(.*-F\) *\([^ ]*\).* \([^ ]*\)$/export _fzf_orig_completion_\3="\1 %s \3 #\2"; [[ "\1" = *" -o nospace "* ]] \&\& [[ ! "$__fzf_nospace_commands" = *" \3 "* ]] \&\& __fzf_nospace_commands="$__fzf_nospace_commands \3 ";/' |
   awk -F= '{OFS = FS} {gsub(/[^A-Za-z0-9_= ;]/, "_", $1);}1'
 }
 
+# Handle previous completion funcs or something
+# TODO: Figure out what this does
+_fzf_handle_dynamic_completion() {
+  local cmd ret orig orig_var orig_cmd orig_complete
+  cmd="$1"
+  shift
+  orig_cmd="$1"
+  orig_var="_fzf_orig_completion_$cmd"
+  orig="${!orig_var##*#}" # trim comment
+  if [ -n "$orig" ] && type "$orig" > /dev/null 2>&1; then
+    $orig "$@" # call completion command
+  elif [ -n "$_fzf_completion_loader" ]; then
+    orig_complete=$(complete -p "$cmd" 2> /dev/null)
+    _completion_loader "$@"
+    ret=$?
+    # _completion_loader may not have updated completion for the command
+    if [ "$(complete -p "$cmd" 2> /dev/null)" != "$orig_complete" ]; then
+      eval "$(complete | command grep " -F.* $orig_cmd$" | __fzf_orig_completion_filter)"
+      if [[ "$__fzf_nospace_commands" = *" $orig_cmd "* ]]; then
+        eval "${orig_complete/ -F / -o nospace -F }"
+      else
+        eval "$orig_complete"
+      fi
+    fi
+    return $ret
+  fi
+}
+
+# The name of FZF command
+__fzfcmd_complete() {
+  [ -n "$TMUX_PANE" ] && [ "${FZF_TMUX:-0}" != 0 ] && [ ${LINES:-40} -gt 15 ] &&
+    echo "fzf-tmux -d${FZF_TMUX_HEIGHT:-40%}" || echo "fzf"
+}
+
+# Path completion
+# Now takes just two arguments -- the compgen command, and fzf options
+__fzf_generic_path_completion() {
+  local cur base dir leftover matches trigger cmd fzf opts end varcomp generator
+  fzf="$(__fzfcmd_complete)"
+  cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
+  COMPREPLY=()
+  trigger=${FZF_COMPLETION_TRIGGER-'**'}
+  [ ${#COMP_WORDS[@]} -ge 1 ] && cur="${COMP_WORDS[COMP_CWORD]}" # cmd line word under cursor
+  # Complete paths and variables
+  varcomp=false
+  [[ "$cur" == '$'* ]] && varcomp=true
+  if [[ "$cur" == *"$trigger" ]]; then
+    base=${cur:0:${#cur}-${#trigger}}
+    eval "base=$base"
+    [[ $base = *"/"* ]] && dir="$base"
+    while true; do
+      if [ -z "$dir" ] || [ -d "$dir" ]; then
+        # Changed functionality here: make suffix dependent on whether
+        # or not the item is a directory -- if so, slash, if not, space
+        leftover=${base/#"$dir"}
+        leftover=${leftover/#\/}
+        [ -z "$dir" ] && dir='.'
+        count=0
+        if $varcomp; then # variable completion
+          generator="compgen -v"
+          leftover="${cur:1}"
+          opts="+m" # one at a time!
+        else
+          generator="$1 $(printf %q "$dir")"
+          opts="$2"
+        fi
+        matches=$(eval "$generator" | tr -s '/' | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $opts -q "$leftover" | while read -r item; do
+          let count+=1
+          if [ -d "$item" ]; then printf "%q/" "$item" | tr -s '/'
+          else printf "%q " "$item"
+          fi
+          done)
+        $varcomp && matches="${matches%% *}" # trim spaces!
+        # If the command (i.e. word on first line of shell) is a
+        # nospace command, add space.... what? This must be a bug, right?
+        # [[ "$__fzf_nospace_commands" = *" ${COMP_WORDS[0]} "* ]] && matches="$matches "
+        if [ -n "$matches" ]; then
+          if $varcomp; then
+            COMPREPLY=( "${!matches}" )
+          else
+            COMPREPLY=( "$matches" )
+          fi
+        else
+          COMPREPLY=( "$cur" )
+        fi
+        printf '\e[5n' # redraws terminal line
+        return 0
+      fi
+      dir=$(dirname "$dir")
+      [[ "$dir" =~ /$ ]] || dir="$dir"/
+    done
+  # Trigger not active, defer to default completion
+  else
+    shift
+    shift
+    _fzf_handle_dynamic_completion "$cmd" "$@"
+  fi
+}
+
+# Generic completion, suitable for more special cases
+# TODO: Allow variable name '$' expansion like in path completion!
+_fzf_complete() {
+  local cur selected trigger cmd fzf post
+  post="$(caller 0 | awk '{print $2}')_post"   # the func name, with a _post suffix
+  type -t "$post" > /dev/null 2>&1 || post=cat # empty
+  fzf="$(__fzfcmd_complete)"
+  cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
+  trigger=${FZF_COMPLETION_TRIGGER-'**'}
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  # Trigger active, collect standard input (the lone 'cat') and
+  # run fzf with those options
+  if [[ "$cur" == *"$trigger" ]]; then
+    cur=${cur:0:${#cur}-${#trigger}}
+    selected=$(cat | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $1 -q "$cur" | $post | tr '\n' ' ')
+    selected=${selected% } # Strip trailing space not to repeat "-o nospace"
+    printf '\e[5n'
+    if [ -n "$selected" ]; then
+      COMPREPLY=( "$selected" )
+      return 0
+    fi
+  # Trigger not active, defer to default completion
+  else
+    shift
+    _fzf_handle_dynamic_completion "$cmd" "$@"
+  fi
+}
+
+###########################################################
+# Completion functions
+###########################################################
+# Preserve existing completion
+# TODO: This maybe rendered obsolete by other changes?
+# eval "$(complete |
+#   sed -E '/-F/!d; / _fzf/d; '"/ ($(echo $a_cmds $x_cmds $d_cmds | sed 's/ /|/g; s/+/\\+/g'))$/"'!d' |
+#   __fzf_orig_completion_filter)"
+
+# Dunno what this does
+if type _completion_loader > /dev/null 2>&1; then
+  _fzf_completion_loader=1
+fi
+
+# Generic path completion
+# Function to pass to 'complete -F [function]', receive command line
+# text. Arg 1 is worker function, arg 2 are fzf executable commands.
+# NOTE: Flag -m enables multi-select, +m disables it
+# TODO: Cannot figure out how to make this work when typing naked pathname
+_fzf_path_completion() {
+  __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
+}
+complete -DE -F _fzf_path_completion -o nospace -o default -o bashdefault # ideal, but this seems to break stuff
+
+# Directory name completion
+# TODO: Disable the environment variables
+# _commands="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}" # fill with right three
+_fzf_dir_completion() {
+  __fzf_generic_path_completion _fzf_compgen_dir "+m" "$@"
+}
+_commands="cd pushd rmdir"
+for _command in $_commands; do
+  complete -F _fzf_dir_completion -o nospace -o dirnames $_command
+done
+
+# Process id completion
+# TODO: Expand to other versions of 'kill' command
+_fzf_complete_kill() {
+  [ -n "${COMP_WORDS[COMP_CWORD]}" ] && return 1
+
+  local selected fzf
+  fzf="$(__fzfcmd_complete)"
+  selected=$(command ps -ef | sed 1d | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-50%} --min-height 15 --reverse $FZF_DEFAULT_OPTS --preview 'echo {}' --preview-window down:3:wrap $FZF_COMPLETION_OPTS" $fzf -m | awk '{print $2}' | tr '\n' ' ')
+  printf '\e[5n'
+
+  if [ -n "$selected" ]; then
+    COMPREPLY=( "$selected" )
+    return 0
+  fi
+}
+complete -F _fzf_complete_kill -o nospace -o default -o bashdefault kill
+
+# Host completion
+_fzf_complete_telnet() {
+  _fzf_complete '+m' "$@" < <(
+    command grep -v '^\s*\(#\|$\)' /etc/hosts | command grep -Fv '0.0.0.0' |
+        awk '{if (length($2) > 0) {print $2}}' | sort -u
+  )
+}
+_fzf_complete_ssh() {
+  _fzf_complete '+m' "$@" < <(
+    cat <(cat ~/.ssh/config /etc/ssh/ssh_config 2> /dev/null | command grep -i '^host ' | command grep -v '[*?]' | awk '{for (i = 2; i <= NF; i++) print $1 " " $i}') \
+        <(command grep -oE '^[[a-z0-9.,:-]+' ~/.ssh/known_hosts | tr ',' '\n' | tr -d '[' | awk '{ print $1 " " $1 }') \
+        <(command grep -v '^\s*\(#\|$\)' /etc/hosts | command grep -Fv '0.0.0.0') |
+        awk '{if (length($2) > 0) {print $2}}' | sort -u
+  )
+}
+complete -F _fzf_complete_telnet -o default -o bashdefault telnet
+complete -F _fzf_complete_ssh -o default -o bashdefault ssh
+
+# FZF option completion
+# Change default behavior, now always complete options whether
+# or not dash on line, and always use fuzzy complete
 _fzf_opts_completion() {
   local cur prev opts
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
-  opts="
+  case "${prev}" in
+    --tiebreak) opts="length begin end index" ;;
+    --color)    opts="dark light 16 bw"       ;;
+    *)          opts="
     -x --extended
     -e --exact
     --algo
@@ -134,262 +329,137 @@ _fzf_opts_completion() {
     --print-query
     --expect
     --sync"
-
-  case "${prev}" in
-  --tiebreak)
-    COMPREPLY=( $(compgen -W "length begin end index" -- "$cur") )
-    return 0
-    ;;
-  --color)
-    COMPREPLY=( $(compgen -W "dark light 16 bw" -- "$cur") )
-    return 0
-    ;;
-  --history)
-    COMPREPLY=()
-    return 0
-    ;;
   esac
-
-  if [[ "$cur" =~ ^-|\+ ]]; then
-    COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
-    return 0
-  fi
-
-  return 0
+  _fzf_complete '-m' "$@" < <(compgen -W "$opts")
 }
-
-_fzf_handle_dynamic_completion() {
-  local cmd orig_var orig ret orig_cmd orig_complete
-  cmd="$1"
-  shift
-  orig_cmd="$1"
-  orig_var="_fzf_orig_completion_$cmd"
-  orig="${!orig_var##*#}" # trim comment
-  if [ -n "$orig" ] && type "$orig" > /dev/null 2>&1; then
-    $orig "$@" # call completion command
-  elif [ -n "$_fzf_completion_loader" ]; then
-    orig_complete=$(complete -p "$cmd" 2> /dev/null)
-    _completion_loader "$@"
-    ret=$?
-    # _completion_loader may not have updated completion for the command
-    if [ "$(complete -p "$cmd" 2> /dev/null)" != "$orig_complete" ]; then
-      eval "$(complete | command grep " -F.* $orig_cmd$" | __fzf_orig_completion_filter)"
-      if [[ "$__fzf_nospace_commands" = *" $orig_cmd "* ]]; then
-        eval "${orig_complete/ -F / -o nospace -F }"
-      else
-        eval "$orig_complete"
-      fi
-    fi
-    return $ret
-  fi
+_fzf_opts_completion_post() {
+  cat /dev/stdin | cut -d' ' -f1
 }
+complete -F _fzf_opts_completion fzf
 
-# lukelbd: now takes just two arguments -- the compgen command, and fzf options
-__fzf_generic_path_completion() {
-  local cur base dir leftover matches trigger cmd fzf end
-  fzf="$(__fzfcmd_complete)"
-  cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
-  COMPREPLY=()
-  trigger=${FZF_COMPLETION_TRIGGER-'**'}
-  cur="${COMP_WORDS[COMP_CWORD]}" # cmd line word under cursor
-  if [[ "$cur" == *"$trigger" ]]; then
-    base=${cur:0:${#cur}-${#trigger}}
-    eval "base=$base"
-    [[ $base = *"/"* ]] && dir="$base"
-    while true; do
-      if [ -z "$dir" ] || [ -d "$dir" ]; then
-        leftover=${base/#"$dir"}
-        leftover=${leftover/#\/}
-        [ -z "$dir" ] && dir='.'
-        # [ "$dir" != "/" ] && dir="${dir/%\//}"
-        # lukelbd: Changed functionality here: make suffix dependent on whether
-        # or not the item is a directory -- if so, slash, if not, space
-        # lukelbd the compgen function should echo the original command, so
-        # it can be put back into shell
-        count=0
-        matches=$(eval "$1 $(printf %q "$dir")" | tr -s '/' | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $2 -q "$leftover" | while read -r item; do
-          let count+=1
-          if [ -d "$item" ]; then printf "%q/" "$item" | tr -s '/'
-          else printf "%q " "$item"
-          fi
-          done)
-        # If the command (i.e. word on first line of shell) is a nospace command, add space.... what?
-        # This must be a bug, right?
-        # [[ "$__fzf_nospace_commands" = *" ${COMP_WORDS[0]} "* ]] && matches="$matches "
-        if [ -n "$matches" ]; then
-          COMPREPLY=( "$matches" )
-        else
-          COMPREPLY=( "$cur" )
-        fi
-        printf '\e[5n' # redraws terminal line
-        return 0
-      fi
-      dir=$(dirname "$dir")
-      [[ "$dir" =~ /$ ]] || dir="$dir"/
-    done
-  else # trigger not active
-    shift
-    shift
-    _fzf_handle_dynamic_completion "$cmd" "$@"
-  fi
+# Commands completion, including executables on PATH and functions
+_fzf_complete_commands() {
+  ! [ -r $HOME/.commands ] && compgen -c | grep -v '[!.:{}]' >$HOME/.commands
+  _fzf_complete '+m' "$@" < <(cat $HOME/.commands)
 }
-
-_fzf_complete() {
-  local cur selected trigger cmd fzf post
-  post="$(caller 0 | awk '{print $2}')_post"   # the filename, with a _post suffix
-  type -t "$post" > /dev/null 2>&1 || post=cat # empty
-  fzf="$(__fzfcmd_complete)"
-
-  cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
-  trigger=${FZF_COMPLETION_TRIGGER-'**'}
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  if [[ "$cur" == *"$trigger" ]]; then
-    cur=${cur:0:${#cur}-${#trigger}}
-
-    selected=$(cat | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $1 -q "$cur" | $post | tr '\n' ' ')
-    selected=${selected% } # Strip trailing space not to repeat "-o nospace"
-    printf '\e[5n'
-    if [ -n "$selected" ]; then
-      COMPREPLY=("$selected")
-      return 0
-    fi
-  else
-    shift
-    _fzf_handle_dynamic_completion "$cmd" "$@"
-  fi
-}
-
-_fzf_path_completion() {
-  # lukelbd: now argument 3 does nothing; suffix determined by test
-  # the below functions just receives 'name' of completion generator
-  # function (which calls a find command)
-  __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
-}
-
-# Deprecated. No file only completion.
-_fzf_file_completion() {
-  _fzf_path_completion "$@"
-}
-
-_fzf_dir_completion() {
-  # lukelbd: now argument 3 does nothing; suffix determined by test
-  __fzf_generic_path_completion _fzf_compgen_dir "" "$@"
-}
-
-_fzf_complete_kill() {
-  [ -n "${COMP_WORDS[COMP_CWORD]}" ] && return 1
-
-  local selected fzf
-  fzf="$(__fzfcmd_complete)"
-  selected=$(command ps -ef | sed 1d | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-50%} --min-height 15 --reverse $FZF_DEFAULT_OPTS --preview 'echo {}' --preview-window down:3:wrap $FZF_COMPLETION_OPTS" $fzf -m | awk '{print $2}' | tr '\n' ' ')
-  printf '\e[5n'
-
-  if [ -n "$selected" ]; then
-    COMPREPLY=( "$selected" )
-    return 0
-  fi
-}
-
-_fzf_complete_telnet() {
-  _fzf_complete '+m' "$@" < <(
-    command grep -v '^\s*\(#\|$\)' /etc/hosts | command grep -Fv '0.0.0.0' |
-        awk '{if (length($2) > 0) {print $2}}' | sort -u
-  )
-}
-
-_fzf_complete_ssh() {
-  _fzf_complete '+m' "$@" < <(
-    cat <(cat ~/.ssh/config /etc/ssh/ssh_config 2> /dev/null | command grep -i '^host ' | command grep -v '[*?]' | awk '{for (i = 2; i <= NF; i++) print $1 " " $i}') \
-        <(command grep -oE '^[[a-z0-9.,:-]+' ~/.ssh/known_hosts | tr ',' '\n' | tr -d '[' | awk '{ print $1 " " $1 }') \
-        <(command grep -v '^\s*\(#\|$\)' /etc/hosts | command grep -Fv '0.0.0.0') |
-        awk '{if (length($2) > 0) {print $2}}' | sort -u
-  )
-}
-
-_fzf_complete_unset() {
-  _fzf_complete '-m' "$@" < <(
-    declare -xp | sed 's/=.*//' | sed 's/.* //'
-  )
-}
-
-_fzf_complete_export() {
-  _fzf_complete '-m' "$@" < <(
-    declare -xp | sed 's/=.*//' | sed 's/.* //'
-  )
-}
-
-_fzf_complete_unalias() {
-  _fzf_complete '-m' "$@" < <(
-    alias | sed 's/=.*//' | sed 's/.* //'
-  )
-}
-
-# fzf options
-complete -o default -F _fzf_opts_completion fzf
-
-# add all possible commands for tab completion
-d_cmds="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}"
-a_cmds="
-  $FZF_COMPLETION_FILE_COMMANDS
-  awk cat diff diff3
-  emacs emacsclient ex file ftp g++ gcc gvim head hg java
-  javac ld less more mvim nvim patch perl python ruby
-  sed sftp sort source tail tee uniq vi view vim wc xdg-open
-  basename bunzip2 bzip2 chmod chown curl cp dirname du
-  find git grep gunzip gzip hg jar
-  ln ls mv open rm rsync scp
-  svn tar unzip zip"
-x_cmds="kill ssh telnet unset unalias export"
-
-# Preserve existing completion
-eval "$(complete |
-  sed -E '/-F/!d; / _fzf/d; '"/ ($(echo $d_cmds $a_cmds $x_cmds | sed 's/ /|/g; s/+/\\+/g'))$/"'!d' |
-  __fzf_orig_completion_filter)"
-
-if type _completion_loader > /dev/null 2>&1; then
-  _fzf_completion_loader=1
-fi
-
-_fzf_defc() {
-  local cmd func opts orig_var orig def
-  cmd="$1"
-  func="$2"
-  opts="$3"
-  orig_var="_fzf_orig_completion_${cmd//[^A-Za-z0-9_]/_}"
-  orig="${!orig_var}" # expands to *value* of variable named ${orig_var}
-  if [ -n "$orig" ]; then
-    printf -v def "$orig" "$func" # assign to shell variable def
-    eval "$def"                   # add function to existing completion command
-  else
-    complete -F "$func" $opts "$cmd"
-  fi
-}
-
-# Anything
-# NOTE: Spaces added dynamically in function, so always call complete with nospace
-# NOTE: Not sure what default/bashdefault do; understanding was default would do
-# stuff like variable completion on a $<prefix> word, but seems to fail.
-for cmd in $a_cmds; do
-  _fzf_defc "$cmd" _fzf_path_completion "-o nospace -o default -o bashdefault"
+_commands="help man type which"
+for _command in $_commands; do
+  complete -F _fzf_complete_commands $_command
 done
 
-# Directory
-for cmd in $d_cmds; do
-  _fzf_defc "$cmd" _fzf_dir_completion "-o nospace -o dirnames"
+# Shell option completion
+_fzf_complete_shopt() {
+  _fzf_complete '+m' "$@" < <(shopt | cut -d' ' -f1 | cut -d$'\t' -f1)
+}
+complete -F _fzf_complete_shopt shopt
+
+# Key binding completion
+_fzf_complete_bindings() {
+  _fzf_complete '+m' "$@" < <(bind -l)
+}
+complete -F _fzf_complete_bindings bind
+
+# Alias completion
+_fzf_complete_aliases() {
+  _fzf_complete '+m' "$@" < <(compgen -a)
+}
+_commands="alias unalias"
+for _command in $_commands; do
+  complete -F _fzf_complete_aliases $_command
 done
 
-unset _fzf_defc
+# Function name completion
+_fzf_complete_functions() {
+  _fzf_complete '+m' "$@" < <(compgen -a)
+}
+complete -F _fzf_complete_functions 'function'
 
-# Kill completion
-complete -F _fzf_complete_kill -o nospace -o default -o bashdefault kill
+# Exported variable name completion
+# Old version: declare -xp | sed 's@=.*@@' | sed 's@.* @@'
+_fzf_complete_variables() {
+  _fzf_complete '+m' "$@" < <(compgen -v)
+}
+_commands="unset export"
+for _command in $_commands; do
+  complete -F _fzf_complete_variables $_command
+done
 
-# Host completion
-complete -F _fzf_complete_ssh -o default -o bashdefault ssh
-complete -F _fzf_complete_telnet -o default -o bashdefault telnet
+# Git completion, includes command names
+_fzf_complete_git() {
+  _fzf_complete '+m' "$@" < <(cat <(_fzf_compgen_path .) \
+    <(git commands | sed 's/$/ (command)/g' | column -t))
+}
+_fzf_complete_git_post() {
+  cat | cut -d' ' -f1
+}
+complete -F _fzf_complete_git git
 
-# Environment variables / Aliases
-complete -F _fzf_complete_unset -o default -o bashdefault unset
-complete -F _fzf_complete_export -o default -o bashdefault export
-complete -F _fzf_complete_unalias -o default -o bashdefault unalias
+# CDO completion, includes command names
+_fzf_complete_cdo() {
+  _fzf_complete '+m' "$@" < <(cat <(_fzf_compgen_path .) \
+    <(cdo --operators | sed 's:[ ]*[^ ]*$::g' | \
+      sed 's/^\\([^ ]*[ ]*\\)\\(.*\\)$/\\1(\\2) /g' | \
+      tr '[:upper:]' '[:lower:]'))
+}
+_fzf_complete_cdo_post() {
+  cat | cut -d' ' -f1
+}
+complete -F _fzf_complete_cdo cdo
 
-unset cmd d_cmds a_cmds x_cmds
+# Bulk apply completion with file extension filtering
+# TODO: Consider expanding or generalizing this, even to ctrl-t or ctrl-f
+# shortcuts maybe. For info see: https://unix.stackexchange.com/a/15309/112647
+# First bulk create new compgen functions
+for _ext in image pdf html nc; do
+  case $_command in
+    image) _filter='\( -iname \*.jpg -o -iname \*.png -o -iname \*.gif -o -iname \*.svg -o -iname \*.eps -o -iname \*.pdf \)' ;;
+    *) _filter='-name \*.'$_ext ;;
+  esac
+  eval "_fzf_compgen_$_ext() {
+    command find -L \"\$1\" \
+      \$FZF_COMPLETION_FIND_OPTS \
+      -name .git -prune -o -name .svn -prune -o \\( -type d -o -type f -o -type l \\) \
+      -a $_filter -a -not -path \"\$1\" -print 2> /dev/null | sed 's@^\\./@@'
+  }"
+done
+# Then make completion functions and apply them
+_fzf_complete_pdf() {
+  __fzf_generic_path_completion _fzf_compgen_pdf "-m" "$@"
+}
+_commands="skim pdf"
+for _command in $_commands; do
+  complete -o nospace -F _fzf_complete_pdf $_command
+done
+# Web related stuff
+_fzf_complete_html() {
+  __fzf_generic_path_completion _fzf_compgen_html "-m" "$@"
+}
+complete -o nospace -F _fzf_complete_html html
+
+# This stuff from original fork, but irrelevant after redesign maybe
+# TODO: Consider deleting
+# d_cmds="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}" # fill with right three
+# a_cmds="${FZF_COMPLETION_FILE_COMMANDS:-awk cat diff diff3 emacs emacsclient ex file ftp g++ gcc gvim head hg java javac ld less more mvim nvim patch perl python ruby sed sftp sort source tail tee uniq vi view vim wc xdg-open basename bunzip2 bzip2 chmod chown curl cp dirname du find git grep gunzip gzip hg jar ln ls mv open rm rsync scp svn tar unzip zip}"
+# x_cmds="${FZF_COMPLETION_PID_COMMANDS:-kill ssh telnet unset unalias export}"
+# unset cmd d_cmds a_cmds x_cmds
+
+# Helper function
+# TODO: Maybe is obsolete, used to use this with fzf dir completion
+# but now just override? Think it was for efficiency, to prevent re-defining
+# completion commands unnecessarily
+# _fzf_defc() {
+#   local cmd func opts orig_var orig def
+#   cmd="$1"
+#   func="$2"
+#   opts="$3"
+#   orig_var="_fzf_orig_completion_${cmd//[^A-Za-z0-9_]/_}"
+#   orig="${!orig_var}" # expands to *value* of variable named ${orig_var}
+#   if [ -n "$orig" ]; then
+#     printf -v def "$orig" "$func" # assign to shell variable def
+#     eval "$def"                   # add function to existing completion command
+#   else
+#     complete -F "$func" $opts "$cmd"
+#   fi
+# }
+# _fzf_defc "$cmd" _fzf_path_completion "-o default -o bashdefault" # original a_cmds loop
+# unset _fzf_defc

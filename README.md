@@ -1,17 +1,17 @@
-# More natural tab completion
-## Description
-I made several changes to the default repo. Now you can replace builtin tab completion with **non-recursive fzf completion**, and it feels natural. I found that most of the time, this was what I wanted. Use <kbd>Ctrl+f</kbd> and <kbd>Ctrl+t</kbd> like normal to use **recursive** path completion. This was done by modifying the `bash` shell completion and key bindings scripts.
+# Fuzzy tab completion
+I created a new branch of `fzf` to make several useful changes. You can now **entirely** replace builtin bash tab completion with **non-recursive FZF completion**, and it feels natural. This replaces the default configuration, where `**` is required to activate FZF fuzzy complete for most commands (the logic being, FZF would be reserved for recursive searching only), and this is only enabled for a few select commands. The `completion.bash` script was modified for this.
 
-I have also made changes that make life easier when syncing fzf settings across servers. This was done by modifying the install script.
+You can still use <kbd>Ctrl+T</kbd> to *recursively* search for paths and paste them into the shell. And now, use <kbd>Ctrl+F</kbd> instead of <kbd>Alt+C</kbd> to *recursively* search for directories, then `cd` into them. The `key-bindings.bash` script was modified for this.
 
-Finally, I now make FZF store the shell setup scripts right in this directory, add them to `.gitignore`, and symlink to them from the home directory. Thought this made FZF nicely self-contained.
+<!-- I have also changed the `install` script, so that the **expected name of the repository folder is `.fzf`, not `fzf`**. -->
+To install, simply clone the repository into the `~/.fzf` folder. The default branch has been changed to the `completion` branch, on which these features were developed.
 
-There are potentially other changes that need to be documented. And more work needs to be done.
+Note some changes have not yet been documented. 
+<!-- There are potentially other changes that need to be documented. And more work needs to be done. -->
 
-## Installation
-To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`.
-
-**Note** this may no longer be necessary; for the time being I've changed the default branch to `completion`. May need to change back when doing pull requests and whatnot.
+<!-- ## Installation -->
+<!-- To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`. -->
+<!-- **Note** this may no longer be necessary; for the time being I've changed the default branch to `completion`. May need to change back when doing pull requests and whatnot. -->
 
 <!-- <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf) -->
 
