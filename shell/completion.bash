@@ -22,6 +22,9 @@
 # * Inicidentally this means a complete command invoking __fzf_generic_path_completion
 #   must *always* be called with the option -o nospace -- spaces are added dynamically if the
 #   item is not a directory.
+# * We also have added FZF_COMPLETION_FILE_COMMANDS just like the default one
+#   FZF_COMPLETION_DIR_COMMANDS. I set that to a giant honking list of every
+#   executable on my path on startup, so that it triggers for all of them.
 ################################################################################
 
 # Function for parsing new command-line option -- list of files to ignore
@@ -324,6 +327,7 @@ _fzf_complete_unalias() {
 # fzf options
 complete -o default -F _fzf_opts_completion fzf
 
+# add all possible commands for tab completion
 d_cmds="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}"
 a_cmds="
   $FZF_COMPLETION_FILE_COMMANDS
@@ -362,8 +366,8 @@ _fzf_defc() {
 }
 
 # Anything
-# NOTE spaces added dynamically in function, so always call complete with nospace
-# NOTE not sure what default/bashdefault do; understanding was default would do
+# NOTE: Spaces added dynamically in function, so always call complete with nospace
+# NOTE: Not sure what default/bashdefault do; understanding was default would do
 # stuff like variable completion on a $<prefix> word, but seems to fail.
 for cmd in $a_cmds; do
   _fzf_defc "$cmd" _fzf_path_completion "-o nospace -o default -o bashdefault"
