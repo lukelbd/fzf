@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -u
-[ ${PWD##*/} != .fzf ] && \
-  echo "Error: This directory must be named '.fzf'." && exit 1
-version=0.17.4
+[ "$PWD" != "$HOME/.fzf" ] && \
+  echo "Error: This directory must be named '$HOME/.fzf'." && exit 1
+version=0.18.0
 auto_completion=
 key_bindings=
 update_config=2
 binary_arch=
-allow_legacy=
 shells="bash zsh fish"
 base='$HOME/.fzf'      # note these *must* be $HOME, not ~; had expansion issues
-base_expand=$HOME/.fzf # expanded
+base_esc="$(printf %q "$base")"
+base_expand="$HOME/.fzf" # expanded
 prefix='$HOME/.fzf'
-prefix_expand=$HOME/.fzf # destination is this directory
+prefix_expand="$HOME/.fzf" # destination is this directory
 fish_source=../../.fzf # loction for symlink in ~/.config/fish to point
 fish_dir=${XDG_CONFIG_HOME:-$HOME/.config}/fish
 
@@ -48,7 +48,6 @@ for opt in "$@"; do
       auto_completion=1
       key_bindings=1
       update_config=1
-      allow_legacy=1
       ;;
     --xdg)
       prefix='"${XDG_CONFIG_HOME:-$HOME/.config}"/fzf/fzf'
@@ -96,13 +95,16 @@ check_binary() {
   if [ $? -ne 0 ]; then
     echo "Error: $output"
     binary_error="Invalid binary"
-  elif [ "$version" != "$output" ]; then
-    echo "$output != $version"
-    binary_error="Invalid version"
   else
-    echo "$output"
-    binary_error=""
-    return 0
+    output=${output/ */}
+    if [ "$version" != "$output" ]; then
+      echo "$output != $version"
+      binary_error="Invalid version"
+    else
+      echo "$output"
+      binary_error=""
+      return 0
+    fi
   fi
   rm -f "$base_expand"/bin/fzf
   return 1
@@ -194,6 +196,8 @@ case "$archi" in
   CYGWIN*\ *64)  download fzf-$version-windows_${binary_arch:-amd64}.zip ;;
   MINGW*\ *86)   download fzf-$version-windows_${binary_arch:-386}.zip   ;;
   MINGW*\ *64)   download fzf-$version-windows_${binary_arch:-amd64}.zip ;;
+  MSYS*\ *86)    download fzf-$version-windows_${binary_arch:-386}.zip   ;;
+  MSYS*\ *64)    download fzf-$version-windows_${binary_arch:-amd64}.zip ;;
   *)             binary_available=0 binary_error=1 ;;
 esac
 
@@ -267,7 +271,7 @@ for shell in $shells; do
   cat > "$src" << EOF
 # Setup fzf
 # ---------
-if [[ ! "\$PATH" == *"$base/bin"* ]]; then
+if [[ ! "\$PATH" == *"$base_esc/bin"* ]]; then
   export PATH="\$PATH:$base/bin"
 fi
 
@@ -278,7 +282,6 @@ $fzf_completion
 # Key bindings
 # ------------
 $fzf_key_bindings
-
 EOF
   echo "OK"
 done

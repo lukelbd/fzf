@@ -10,24 +10,23 @@
 # - $FZF_COMPLETION_OPTS    (default: empty)
 #
 ################################################################################
-# lukelbd edits: summary
+# lukelbd edits
 # * Goal is to set completion trigger to '' (always on), bind tab key to
 #   'cancel', and use the completion option 'maxdepth 1' -- this enables us
 #   to succissively toggle completion on and off with tab, and lets us fuzzy
 #   search the depth-1 directory contents.
+# * Added support for completion bash variables, i.e. any string that starts
+#   with dollar sign '$'. Variable is expanded into its value in terminal.
 # * To make this more similar to bash completion, have modified
 #   __fzf_generic_path_completion to *test* whether an entry is a directory
 #   or file. If it is a directory, we append it with a slash (and no space,
 #   like in _fzf_dir_completion). If it is a file, we append it with zero
 #   space. That way if you select a directory, you can immediately press tab
 #   again to search *this* directory. This can be *critical* for huge
-#   directory trees (e.g. $HOME).
-# * Inicidentally this means a complete command invoking
+#   directory trees (e.g. $HOME). Inicidentally this means a complete command invoking
 #   __fzf_generic_path_completion must *always* be called with the option
 #   -o nospace -- spaces are added dynamically if the item is not a directory.
 ################################################################################
-
-###########################################################
 # General functions, helper functions
 ###########################################################
 # Function for parsing new command-line option -- list of files to ignore
@@ -82,7 +81,6 @@ __fzf_orig_completion_filter() {
 }
 
 # Handle previous completion funcs or something
-# TODO: Figure out what this does
 _fzf_handle_dynamic_completion() {
   local cmd ret orig orig_var orig_cmd orig_complete
   cmd="$1"
@@ -181,7 +179,6 @@ __fzf_generic_path_completion() {
 }
 
 # Generic completion, suitable for more special cases
-# TODO: Allow variable name '$' expansion like in path completion!
 _fzf_complete() {
   local cur selected trigger cmd fzf post
   post="$(caller 0 | awk '{print $2}')_post"   # the func name, with a _post suffix
@@ -211,12 +208,6 @@ _fzf_complete() {
 ###########################################################
 # Completion functions
 ###########################################################
-# Preserve existing completion
-# TODO: This maybe rendered obsolete by other changes?
-# eval "$(complete |
-#   sed -E '/-F/!d; / _fzf/d; '"/ ($(echo $a_cmds $x_cmds $d_cmds | sed 's/ /|/g; s/+/\\+/g'))$/"'!d' |
-#   __fzf_orig_completion_filter)"
-
 # Dunno what this does
 if type _completion_loader > /dev/null 2>&1; then
   _fzf_completion_loader=1
@@ -225,8 +216,8 @@ fi
 # Generic path completion
 # Function to pass to 'complete -F [function]', receive command line
 # text. Arg 1 is worker function, arg 2 are fzf executable commands.
-# NOTE: Flag -m enables multi-select, +m disables it
 # TODO: Cannot figure out how to make this work when typing naked pathname
+# NOTE: Flag -m enables multi-select, +m disables it
 _fzf_path_completion() {
   __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
 }
@@ -375,7 +366,6 @@ _fzf_complete_functions() {
 complete -F _fzf_complete_functions 'function'
 
 # Exported variable name completion
-# Old version: declare -xp | sed 's@=.*@@' | sed 's@.* @@'
 _fzf_complete_variables() {
   _fzf_complete '+m' "$@" < <(compgen -v)
 }
@@ -426,40 +416,10 @@ done
 _fzf_complete_pdf() {
   __fzf_generic_path_completion _fzf_compgen_pdf "-m" "$@"
 }
-_commands="skim pdf"
-for _command in $_commands; do
-  complete -o nospace -F _fzf_complete_pdf $_command
-done
+complete -o nospace -F _fzf_complete_pdf pdf
 # Web related stuff
 _fzf_complete_html() {
   __fzf_generic_path_completion _fzf_compgen_html "-m" "$@"
 }
 complete -o nospace -F _fzf_complete_html html
 
-# This stuff from original fork, but irrelevant after redesign maybe
-# TODO: Consider deleting
-# d_cmds="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}" # fill with right three
-# a_cmds="${FZF_COMPLETION_FILE_COMMANDS:-awk cat diff diff3 emacs emacsclient ex file ftp g++ gcc gvim head hg java javac ld less more mvim nvim patch perl python ruby sed sftp sort source tail tee uniq vi view vim wc xdg-open basename bunzip2 bzip2 chmod chown curl cp dirname du find git grep gunzip gzip hg jar ln ls mv open rm rsync scp svn tar unzip zip}"
-# x_cmds="${FZF_COMPLETION_PID_COMMANDS:-kill ssh telnet unset unalias export}"
-# unset cmd d_cmds a_cmds x_cmds
-
-# Helper function
-# TODO: Maybe is obsolete, used to use this with fzf dir completion
-# but now just override? Think it was for efficiency, to prevent re-defining
-# completion commands unnecessarily
-# _fzf_defc() {
-#   local cmd func opts orig_var orig def
-#   cmd="$1"
-#   func="$2"
-#   opts="$3"
-#   orig_var="_fzf_orig_completion_${cmd//[^A-Za-z0-9_]/_}"
-#   orig="${!orig_var}" # expands to *value* of variable named ${orig_var}
-#   if [ -n "$orig" ]; then
-#     printf -v def "$orig" "$func" # assign to shell variable def
-#     eval "$def"                   # add function to existing completion command
-#   else
-#     complete -F "$func" $opts "$cmd"
-#   fi
-# }
-# _fzf_defc "$cmd" _fzf_path_completion "-o default -o bashdefault" # original a_cmds loop
-# unset _fzf_defc
