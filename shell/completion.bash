@@ -17,6 +17,9 @@
 #   search the depth-1 directory contents.
 # * Added support for completion bash variables, i.e. any string that starts
 #   with dollar sign '$'. Variable is expanded into its value in terminal.
+#   Also added support for two tools with a whole bunch of "subcommands": cdo
+#   and git. When completing words after typing these, possible commands are
+#   listed alongside filenames.
 # * To make this more similar to bash completion, have modified
 #   __fzf_generic_path_completion to *test* whether an entry is a directory
 #   or file. If it is a directory, we append it with a slash (and no space,
@@ -229,10 +232,9 @@ complete -DE -F _fzf_path_completion -o nospace -o default -o bashdefault # idea
 _fzf_dir_completion() {
   __fzf_generic_path_completion _fzf_compgen_dir "+m" "$@"
 }
-_commands="cd pushd rmdir"
-for _command in $_commands; do
-  complete -F _fzf_dir_completion -o nospace -o dirnames $_command
-done
+complete -F _fzf_dir_completion -o nospace -o dirnames 'cd'
+complete -F _fzf_dir_completion -o nospace -o dirnames 'pushd'
+complete -F _fzf_dir_completion -o nospace -o dirnames 'rmdir'
 
 # Process id completion
 # TODO: Expand to other versions of 'kill' command
@@ -267,7 +269,7 @@ _fzf_complete_ssh() {
   )
 }
 complete -F _fzf_complete_telnet -o default -o bashdefault telnet
-complete -F _fzf_complete_ssh -o default -o bashdefault ssh
+complete -F _fzf_complete_ssh    -o default -o bashdefault ssh
 
 # FZF option completion
 # Change default behavior, now always complete options whether
@@ -326,38 +328,36 @@ _fzf_opts_completion() {
 _fzf_opts_completion_post() {
   cat /dev/stdin | cut -d' ' -f1
 }
-complete -F _fzf_opts_completion fzf
+complete -F _fzf_opts_completion 'fzf'
 
 # Commands completion, including executables on PATH and functions
 _fzf_complete_commands() {
   ! [ -r $HOME/.commands ] && compgen -c | grep -v '[!.:{}]' >$HOME/.commands
   _fzf_complete '+m' "$@" < <(cat $HOME/.commands)
 }
-_commands="help man type which"
-for _command in $_commands; do
-  complete -F _fzf_complete_commands $_command
-done
+complete -F _fzf_complete_commands 'help'
+complete -F _fzf_complete_commands 'man'
+complete -F _fzf_complete_commands 'type'
+complete -F _fzf_complete_commands 'which'
 
 # Shell option completion
 _fzf_complete_shopt() {
   _fzf_complete '+m' "$@" < <(shopt | cut -d' ' -f1 | cut -d$'\t' -f1)
 }
-complete -F _fzf_complete_shopt shopt
+complete -F _fzf_complete_shopt 'shopt'
 
 # Key binding completion
 _fzf_complete_bindings() {
   _fzf_complete '+m' "$@" < <(bind -l)
 }
-complete -F _fzf_complete_bindings bind
+complete -F _fzf_complete_bindings 'bind'
 
 # Alias completion
 _fzf_complete_aliases() {
   _fzf_complete '+m' "$@" < <(compgen -a)
 }
-_commands="alias unalias"
-for _command in $_commands; do
-  complete -F _fzf_complete_aliases $_command
-done
+complete -F _fzf_complete_aliases 'alias'
+complete -F _fzf_complete_aliases 'unalias'
 
 # Function name completion
 _fzf_complete_functions() {
@@ -369,10 +369,8 @@ complete -F _fzf_complete_functions 'function'
 _fzf_complete_variables() {
   _fzf_complete '+m' "$@" < <(compgen -v)
 }
-_commands="unset export"
-for _command in $_commands; do
-  complete -F _fzf_complete_variables $_command
-done
+complete -F _fzf_complete_variables 'unset'
+complete -F _fzf_complete_variables 'export'
 
 # Git completion, includes command names
 _fzf_complete_git() {
@@ -396,30 +394,15 @@ _fzf_complete_cdo_post() {
 }
 complete -F _fzf_complete_cdo cdo
 
-# Bulk apply completion with file extension filtering
-# TODO: Consider expanding or generalizing this, even to ctrl-t or ctrl-f
-# shortcuts maybe. For info see: https://unix.stackexchange.com/a/15309/112647
-# First bulk create new compgen functions
-for _ext in image pdf html nc; do
-  case $_command in
-    image) _filter='\( -iname \*.jpg -o -iname \*.png -o -iname \*.gif -o -iname \*.svg -o -iname \*.eps -o -iname \*.pdf \)' ;;
-    *) _filter='-name \*.'$_ext ;;
-  esac
-  eval "_fzf_compgen_$_ext() {
-    command find -L \"\$1\" \
-      \$FZF_COMPLETION_FIND_OPTS \
-      -name .git -prune -o -name .svn -prune -o \\( -type d -o -type f -o -type l \\) \
-      -a $_filter -a -not -path \"\$1\" -print 2> /dev/null | sed 's@^\\./@@'
-  }"
-done
-# Then make completion functions and apply them
-_fzf_complete_pdf() {
-  __fzf_generic_path_completion _fzf_compgen_pdf "-m" "$@"
-}
-complete -o nospace -F _fzf_complete_pdf pdf
-# Web related stuff
-_fzf_complete_html() {
-  __fzf_generic_path_completion _fzf_compgen_html "-m" "$@"
-}
-complete -o nospace -F _fzf_complete_html html
-
+# Tool to bulk apply completion with file extension filtering
+# For info on 'find' commands see: https://unix.stackexchange.com/a/15309/112647
+# _ext='image'
+# _filter='\( -iname \*.jpg -o -iname \*.png -o -iname \*.gif -o -iname \*.svg -o -iname \*.eps -o -iname \*.pdf \)' ;;
+# eval "_fzf_compgen_$_ext() {
+#   command find -L \"\$1\" \
+#     \$FZF_COMPLETION_FIND_OPTS \
+#     -name .git -prune -o -name .svn -prune -o \\( -type d -o -type f -o -type l \\) \
+#     -a $_filter -a -not -path \"\$1\" -print 2> /dev/null | sed 's@^\\./@@'
+# }"
+# __fzf_generic_path_completion _fzf_compgen_image "-m" "$@"
+# complete -o nospace -F _fzf_complete_image 'command'
