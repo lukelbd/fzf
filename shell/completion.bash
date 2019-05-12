@@ -15,11 +15,6 @@
 #   'cancel', and use the completion option 'maxdepth 1' -- this enables us
 #   to succissively toggle completion on and off with tab, and lets us fuzzy
 #   search the depth-1 directory contents.
-# * Added support for completion bash variables, i.e. any string that starts
-#   with dollar sign '$'. Variable is expanded into its value in terminal.
-#   Also added support for two tools with a whole bunch of "subcommands": cdo
-#   and git. When completing words after typing these, possible commands are
-#   listed alongside filenames.
 # * To make this more similar to bash completion, have modified
 #   __fzf_generic_path_completion to *test* whether an entry is a directory
 #   or file. If it is a directory, we append it with a slash (and no space,
@@ -219,7 +214,6 @@ fi
 # Generic path completion
 # Function to pass to 'complete -F [function]', receive command line
 # text. Arg 1 is worker function, arg 2 are fzf executable commands.
-# TODO: Cannot figure out how to make this work when typing naked pathname
 # NOTE: Flag -m enables multi-select, +m disables it
 _fzf_path_completion() {
   __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
@@ -375,22 +369,24 @@ complete -F _fzf_complete_variables 'export'
 # Git completion, includes command names
 _fzf_complete_git() {
   _fzf_complete '+m' "$@" < <(cat <(_fzf_compgen_path .) \
-    <(git commands | sed 's/$/ (command)/g' | column -t))
+    <(git commands | sed 's/$/ ::command/g' | column -t))
 }
 _fzf_complete_git_post() {
-  cat | cut -d' ' -f1
+  cat | sed 's/::command *$//g' | sed 's/ *$//g'
 }
 complete -F _fzf_complete_git git
 
 # CDO completion, includes command names
+# WARNING: For some reason mac sed fails in regex
+# search for 's/ \+(.*) *$' but not GNU sed, so break this in two
 _fzf_complete_cdo() {
   _fzf_complete '+m' "$@" < <(cat <(_fzf_compgen_path .) \
-    <(cdo --operators | sed 's:[ ]*[^ ]*$::g' | \
-      sed 's/^\\([^ ]*[ ]*\\)\\(.*\\)$/\\1(\\2) /g' | \
+    <(cdo --operators | sed 's/[ ]*[^ ]*$//g' | \
+      sed 's/^\([^ ]*[ ]*\)\(.*\)$/\1(\2) /g' | \
       tr '[:upper:]' '[:lower:]'))
 }
 _fzf_complete_cdo_post() {
-  cat | cut -d' ' -f1
+  cat | sed 's/(.*) *$//g' | sed 's/ *$//g'
 }
 complete -F _fzf_complete_cdo cdo
 
