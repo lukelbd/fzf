@@ -17,7 +17,9 @@ settings:
   completion behavior when command line is empty.
 
 ## Installation
-To install, simply clone the repository into the `~/.fzf` folder. The default branch has been changed to the `completion` branch, on which these features were developed. Note I have also changed the `install` script, so that the expected name of the repository folder is `$HOME/.fzf`, not `fzf`.
+To install, simply clone the repository into the `~/.fzf` folder. The default branch has been changed to the `completion` branch, on which these features were developed.
+
+Note I have also changed the `install` script, so that the expected name of the repository folder is `$HOME/.fzf`, not `fzf`. This makes things more portable by adding to shell configuration files the literal `$HOME/.fzf` string instead of referencing a specific user directory!
 
 <!-- <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf) -->
 

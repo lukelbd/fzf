@@ -8,12 +8,12 @@ key_bindings=
 update_config=2
 binary_arch=
 shells="bash zsh fish"
-base='$HOME/.fzf'      # note these *must* be $HOME, not ~; had expansion issues
-base_esc="$(printf %q "$base")"
-base_expand="$HOME/.fzf" # expanded
+fzf_base='$HOME/.fzf'      # note these *must* be $HOME, not ~; had expansion issues
+fzf_base_esc="$(printf %q "$fzf_base")"
+fzf_base_expand="$HOME/.fzf" # expanded
 prefix='$HOME/.fzf'
 prefix_expand="$HOME/.fzf" # destination is this directory
-fish_source=../../.fzf # loction for symlink in ~/.config/fish to point
+fish_source='../../.fzf' # loction for symlink in ~/.config/fish to point
 fish_dir=${XDG_CONFIG_HOME:-$HOME/.config}/fish
 
 help() {
@@ -91,7 +91,7 @@ ask() {
 check_binary() {
   echo -n "  - Checking fzf executable ... "
   local output
-  output=$("$base_expand"/bin/fzf --version 2>&1 | awk '{print $1}')
+  output=$("$fzf_base_expand"/bin/fzf --version 2>&1 | awk '{print $1}')
   if [ $? -ne 0 ]; then
     echo "Error: $output"
     binary_error="Invalid binary"
@@ -106,7 +106,7 @@ check_binary() {
       return 0
     fi
   fi
-  rm -f "$base_expand"/bin/fzf
+  rm -f "$fzf_base_expand"/bin/fzf
   return 1
 }
 
@@ -114,7 +114,7 @@ link_fzf_in_path() {
   if which_fzf="$(command -v fzf)"; then
     echo "  - Found in \$PATH"
     echo "  - Creating symlink: $which_fzf -> bin/fzf"
-    (cd "$base_expand"/bin && rm -f fzf && ln -sf "$which_fzf" fzf)
+    (cd "$fzf_base_expand"/bin && rm -f fzf && ln -sf "$which_fzf" fzf)
     check_binary && return
   fi
   return 1
@@ -143,13 +143,13 @@ try_wget() {
 download() {
   echo "Downloading bin/fzf ..."
   if [[ ! "$version" =~ alpha ]]; then
-    if [ -x "$base_expand"/bin/fzf ]; then
+    if [ -x "$fzf_base_expand"/bin/fzf ]; then
       echo "  - Already exists"
       check_binary && return
     fi
     link_fzf_in_path && return
   fi
-  mkdir -p "$base_expand"/bin && cd "$base_expand"/bin
+  mkdir -p "$fzf_base_expand"/bin && cd "$fzf_base_expand"/bin
   if [ $? -ne 0 ]; then
     binary_error="Failed to create bin directory"
     return
@@ -201,7 +201,7 @@ case "$archi" in
   *)             binary_available=0 binary_error=1 ;;
 esac
 
-cd "$base_expand"
+cd "$fzf_base_expand"
 if [ -n "$binary_error" ]; then
   if [ $binary_available -eq 0 ]; then
     echo "No prebuilt binary for $archi ..."
@@ -216,7 +216,7 @@ if [ -n "$binary_error" ]; then
     fi
     if go get -u github.com/junegunn/fzf; then
       echo "OK"
-      cp "$GOPATH/bin/fzf" "$base_expand/bin/"
+      cp "$GOPATH/bin/fzf" "$fzf_base_expand/bin/"
     else
       echo "Failed to build binary. Installation failed."
       exit 1
@@ -258,12 +258,12 @@ for shell in $shells; do
   src=${prefix_expand}.${shell}
   echo -n "Generate $src ... "
 
-  fzf_completion="[[ \$- == *i* ]] && source \"$base/shell/completion.${shell}\" 2> /dev/null"
+  fzf_completion="[[ \$- == *i* ]] && source \"$fzf_base/shell/completion.${shell}\" 2> /dev/null"
   if [ $auto_completion -eq 0 ]; then
     fzf_completion="# $fzf_completion"
   fi
 
-  fzf_key_bindings="source \"$base/shell/key-bindings.${shell}\""
+  fzf_key_bindings="source \"$fzf_base/shell/key-bindings.${shell}\""
   if [ $key_bindings -eq 0 ]; then
     fzf_key_bindings="# $fzf_key_bindings"
   fi
@@ -271,8 +271,8 @@ for shell in $shells; do
   cat > "$src" << EOF
 # Setup fzf
 # ---------
-if [[ ! "\$PATH" == *"$base_esc/bin"* ]]; then
-  export PATH="\$PATH:$base/bin"
+if [[ ! "\$PATH" == *"$fzf_base_esc/bin"* ]]; then
+  export PATH="\$PATH:$fzf_base/bin"
 fi
 
 # Auto-completion
@@ -291,8 +291,8 @@ done
 if [[ "$shells" =~ fish ]]; then
   echo -n "Update fish_user_paths ... "
   fish << EOF
-  echo \$fish_user_paths | \grep $base/bin > /dev/null
-  or set --universal fish_user_paths \$fish_user_paths $base/bin
+  echo \$fish_user_paths | \grep $fzf_base/bin > /dev/null
+  or set --universal fish_user_paths \$fish_user_paths $fzf_base/bin
 EOF
   [ $? -eq 0 ] && echo "OK" || echo "Failed"
 
