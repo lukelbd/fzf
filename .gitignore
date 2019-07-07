@@ -1,6 +1,4 @@
-# custom ignores
 .vimsession
-# original ignore
 bin/fzf
 bin/fzf.exe
 target
