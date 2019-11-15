@@ -191,12 +191,14 @@ _fzf_complete() {
     cur=${cur:0:${#cur}-${#trigger}}
     selected=$(cat | FZF_DEFAULT_OPTS="--height ${FZF_TMUX_HEIGHT:-40%} --reverse $FZF_DEFAULT_OPTS $FZF_COMPLETION_OPTS" $fzf $1 -q "$cur" | $post | tr '\n' ' ')
     selected=${selected% } # Strip trailing space not to repeat "-o nospace"
-    printf '\e[5n'
-    if [ -n "$selected" ]; then
-      COMPREPLY=( "$selected" )
-      return 0
-    fi
   # Trigger not active, defer to default completion
+    if [ -n "$selected" ]; then
+      COMPREPLY=("$selected")
+    else
+      COMPREPLY=("$cur")
+    fi
+    printf '\e[5n'
+    return 0
   else
     shift
     _fzf_handle_dynamic_completion "$cmd" "$@"
@@ -230,6 +232,13 @@ complete -F _fzf_dir_completion -o nospace -o dirnames 'cd'
 complete -F _fzf_dir_completion -o nospace -o dirnames 'pushd'
 complete -F _fzf_dir_completion -o nospace -o dirnames 'rmdir'
 
+# Bindings completion
+_fzf_complete_bindings() {
+  _fzf_complete '+m' "$@" < <(bind -l)
+}
+complete -F _fzf_complete_bindings 'bind'
+
+
 # Process id completion
 # TODO: Expand to other versions of 'kill' command
 _fzf_complete_kill() {
@@ -254,6 +263,9 @@ _fzf_complete_telnet() {
         awk '{if (length($2) > 0) {print $2}}' | sort -u
   )
 }
+complete -F _fzf_complete_telnet -o default -o bashdefault telnet
+
+# SSH completion
 _fzf_complete_ssh() {
   _fzf_complete '+m' "$@" < <(
     cat <(cat ~/.ssh/config /etc/ssh/ssh_config 2> /dev/null | command grep -i '^host ' | command grep -v '[*?]' | awk '{for (i = 2; i <= NF; i++) print $1 " " $i}') \
@@ -262,7 +274,6 @@ _fzf_complete_ssh() {
         awk '{if (length($2) > 0) {print $2}}' | sort -u
   )
 }
-complete -F _fzf_complete_telnet -o default -o bashdefault telnet
 complete -F _fzf_complete_ssh    -o default -o bashdefault ssh
 
 # FZF option completion
@@ -340,11 +351,27 @@ _fzf_complete_shopt() {
 }
 complete -F _fzf_complete_shopt 'shopt'
 
-# Key binding completion
-_fzf_complete_bindings() {
-  _fzf_complete '+m' "$@" < <(bind -l)
+# Anything
+__fzf_defc() {
+  local cmd func opts orig_var orig def
+  cmd="$1"
+  func="$2"
+  opts="$3"
+  orig_var="_fzf_orig_completion_${cmd//[^A-Za-z0-9_]/_}"
+  orig="${!orig_var}"
+  if [ -n "$orig" ]; then
+    printf -v def "$orig" "$func"
+    eval "$def"
+  else
+    complete -F "$func" $opts "$cmd"
+  fi
 }
-complete -F _fzf_complete_bindings 'bind'
+for cmd in $a_cmds; do
+  __fzf_defc "$cmd" _fzf_path_completion "-o default -o bashdefault"
+done
+for cmd in $d_cmds; do
+  __fzf_defc "$cmd" _fzf_dir_completion "-o nospace -o dirnames"
+done
 
 # Alias completion
 _fzf_complete_aliases() {
@@ -402,3 +429,22 @@ complete -F _fzf_complete_cdo cdo
 # }"
 # __fzf_generic_path_completion _fzf_compgen_image "-m" "$@"
 # complete -o nospace -F _fzf_complete_image 'command'
+
+# Mysterious function added recently
+_fzf_setup_completion() {
+  local kind fn cmd
+  kind=$1
+  fn=_fzf_${1}_completion
+  if [[ $# -lt 2 ]] || ! type -t "$fn" > /dev/null; then
+    echo "usage: ${FUNCNAME[0]} path|dir COMMANDS..."
+    return 1
+  fi
+  shift
+  for cmd in "$@"; do
+    eval "$(complete -p "$cmd" 2> /dev/null | grep -v "$fn" | __fzf_orig_completion_filter)"
+    case "$kind" in
+      dir) __fzf_defc "$cmd" "$fn" "-o nospace -o dirnames" ;;
+      *)   __fzf_defc "$cmd" "$fn" "-o default -o bashdefault" ;;
+    esac
+  done
+}
