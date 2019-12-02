@@ -224,13 +224,13 @@ complete -DE -F _fzf_path_completion -o nospace -o default -o bashdefault # idea
 
 # Directory name completion
 # TODO: Disable the environment variables
-# _commands="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}" # fill with right three
 _fzf_dir_completion() {
   __fzf_generic_path_completion _fzf_compgen_dir "+m" "$@"
 }
-complete -F _fzf_dir_completion -o nospace -o dirnames 'cd'
-complete -F _fzf_dir_completion -o nospace -o dirnames 'pushd'
-complete -F _fzf_dir_completion -o nospace -o dirnames 'rmdir'
+_commands="${FZF_COMPLETION_DIR_COMMANDS:-cd pushd rmdir}"
+for _cmd in $_commands; do
+  complete -F _fzf_dir_completion -o nospace -o dirnames "$_cmd"
+done
 
 # Bindings completion
 _fzf_complete_bindings() {
