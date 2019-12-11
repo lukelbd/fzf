@@ -28,44 +28,30 @@
 #   -o nospace -- spaces are added dynamically if the item is not a directory.
 ################################################################################
 # General functions, helper functions
-###########################################################
-# Function for parsing new command-line option -- list of files to ignore
-# For example, .DS_Store
-_fzf_ignore() {
-  if [ -z "$1" ]; then
-    echo -false # -not -false == -true
-  else
-    echo -name $(echo "$1" | xargs | sed 's/ / -o -name /g')
-  fi
-}
-# Similar idea here
-_fzf_include() {
-  if [ -z "$1" ]; then
-    echo -true
-  else
-    echo -name $(echo "$1" | xargs | sed 's/ / -o -name /g')
-  fi
-}
-
+################################################################################
 # To use custom commands instead of find, override _fzf_compgen_{path,dir}
 # They accept one argument -- the base directory
 # Below prunes results in git directories, enforces some user variables,
 # prunes input directory itself from find result, and remove leading './'
+_fzf_ignore() {
+  if [ $# -eq 0 ]; then
+    echo -false  # -not -false == -true
+  else
+    echo -name $(echo "$@" | xargs | sed 's/ / -o -name /g')
+  fi
+}
 _fzf_compgen_path() {
   command find -L "$1" \
-    $FZF_COMPLETION_FIND_OPTS \
+    -maxdepth 1 -mindepth 1 \
     -name .git -prune -o -name .svn -prune -o \( -type d -o -type f -o -type l \) \
-    -a -not \( $(_fzf_ignore $FZF_COMPLETION_FIND_IGNORE) \) \
-    -a \( $(_fzf_include $FZF_COMPLETION_FIND_INCLUDE) \) \
+    -a -not \( $(_fzf_ignore $FZF_COMPLETION_IGNORE) \) \
     -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
 }
-
 _fzf_compgen_dir() {
   command find -L "$1" \
-    $FZF_COMPLETION_FIND_OPTS \
+    -maxdepth 1 -mindepth 1 \
     -name .git -prune -o -name .svn -prune -o -type d \
-    -a -not \( $(_fzf_ignore $FZF_COMPLETION_FIND_IGNORE) \) \
-    -a \( $(_fzf_include $FZF_COMPLETION_FIND_INCLUDE) \) \
+    -a -not \( $(_fzf_ignore $FZF_COMPLETION_IGNORE) \) \
     -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
 }
 
