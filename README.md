@@ -1,17 +1,25 @@
-# Fuzzy tab completion
+# FZF enhancements
+## Overview
 I created a new branch of `fzf` to make several useful changes. You can now **entirely** replace builtin bash tab completion with **non-recursive FZF completion**, and it feels natural. This replaces the default configuration, where `**` is required to activate FZF fuzzy complete for most commands (the logic being, FZF would be reserved for recursive searching only), and this is only enabled for a few select commands. The `completion.bash` script was modified for this.
 
 You can still use <kbd>Ctrl+T</kbd> to *recursively* search for paths and paste them into the shell. And now, use <kbd>Ctrl+F</kbd> instead of <kbd>Alt+C</kbd> to *recursively* search for directories, then `cd` into them. The `key-bindings.bash` script was modified for this.
 
-<!-- I have also changed the `install` script, so that the **expected name of the repository folder is `.fzf`, not `fzf`**. -->
+I also added support for completion *bash variables*, i.e. any string that starts with dollar sign `$`. The
+variable is expanded into its value after selection. I also added the following "specialty" completion
+settings:
+
+* Support for `git` and `cdo` (Climate Data Operators) subcommands. May add `port`, `brew`, `pip`, and `conda` to this.
+* Alias, function, and variable completion for the `alias`, `unalias`, `function`, `unset`, and `export` commands.
+* Key binding and shell option completion for the `bind` and `shopt` commands.
+* Command-name completion for the `man`, `help`, `type`, and `which` commands. To save time, this generates
+  a `$HOME/.commands` file in your home directory that lists all available commands. To refresh the command
+  list, simply delete the file and try command auto-completion again. May in future make this the *default*
+  completion behavior when command line is empty.
+
+## Installation
 To install, simply clone the repository into the `~/.fzf` folder. The default branch has been changed to the `completion` branch, on which these features were developed.
 
-Note some changes have not yet been documented. 
-<!-- There are potentially other changes that need to be documented. And more work needs to be done. -->
-
-<!-- ## Installation -->
-<!-- To set up, clone the repository then run the custom command `git get` or `git fetch --all` to get all branches. Switch to the features branch with `git checkout completion`. -->
-<!-- **Note** this may no longer be necessary; for the time being I've changed the default branch to `completion`. May need to change back when doing pull requests and whatnot. -->
+Note I have also changed the `install` script, so that the expected name of the repository folder is `$HOME/.fzf`, not `fzf`. This makes things more portable by adding to shell configuration files the literal `$HOME/.fzf` string instead of referencing a specific user directory!
 
 <!-- <img src="https://raw.githubusercontent.com/junegunn/i/master/fzf.png" height="170" alt="fzf - a command-line fuzzy finder"> [![travis-ci](https://travis-ci.org/junegunn/fzf.svg?branch=master)](https://travis-ci.org/junegunn/fzf) -->
 
@@ -43,7 +51,10 @@ Table of Contents
       * [Using git](#using-git)
       * [As Vim plugin](#as-vim-plugin)
       * [Arch Linux](#arch-linux)
+      * [Debian](#debian)
       * [Fedora](#fedora)
+      * [openSUSE](#opensuse)
+      * [FreeBSD](#freebsd)
       * [Windows](#windows)
    * [Upgrading fzf](#upgrading-fzf)
    * [Building fzf](#building-fzf)
@@ -160,6 +171,17 @@ Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 sudo pacman -S fzf
 ```
 
+### Debian
+
+fzf is available in Debian Buster and above, and can be installed using the usual
+method:
+
+```sh
+sudo apt-get install fzf
+```
+
+Read the documentation (/usr/share/doc/fzf/README.Debian) on how to enable it.
+
 ### Fedora
 
 fzf is available in Fedora 26 and above, and can be installed using the usual
@@ -173,15 +195,37 @@ Shell completion and plugins for vim or neovim are enabled by default. Shell
 key bindings are installed but not enabled by default. See Fedora's package
 documentation (/usr/share/doc/fzf/README.Fedora) for more information.
 
+### openSUSE
+
+fzf is available in openSUSE Tumbleweed and can be installed via zypper:
+
+```sh
+sudo zypper install fzf
+```
+
+### FreeBSD
+
+```sh
+pkg install fzf
+```
+
 ### Windows
 
 Pre-built binaries for Windows can be downloaded [here][bin]. fzf is also
-available as a [Chocolatey package][choco].
+available as a [Chocolatey package][choco]:
 
 [choco]: https://chocolatey.org/packages/fzf
 
 ```sh
 choco install fzf
+```
+
+or a [Scoop package][scoop]:
+
+[scoop]: https://github.com/ScoopInstaller/Main/blob/master/bucket/fzf.json
+
+```sh
+scoop install fzf
 ```
 
 However, other components of the project may not work on Windows. Known issues
