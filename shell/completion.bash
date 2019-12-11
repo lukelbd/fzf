@@ -31,26 +31,25 @@
 # They accept one argument -- the base directory
 # Below prunes results in git directories, enforces some user variables,
 # prunes input directory itself from find result, and remove leading './'
-_fzf_ignore() {
-  if [ $# -eq 0 ]; then
-    echo -false  # -not -false == -true
+_fzf_compgen_path() {
+  if [ -n "$FZF_COMPGEN_PATH_COMMAND" ]; then
+    eval "$FZF_COMPGEN_PATH_COMMAND"
   else
-    echo -name $(echo "$@" | xargs | sed 's/ / -o -name /g')
+    command find -L "$1" \
+      -maxdepth 1 -mindepth 1 \
+      -name .git -prune -o -name .svn -prune -o \( -type d -o -type f -o -type l \) \
+      -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
   fi
 }
-_fzf_compgen_path() {
-  command find -L "$1" \
-    -maxdepth 1 -mindepth 1 \
-    -name .git -prune -o -name .svn -prune -o \( -type d -o -type f -o -type l \) \
-    -a -not \( $(_fzf_ignore $FZF_COMPLETION_IGNORE) \) \
-    -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
-}
 _fzf_compgen_dir() {
-  command find -L "$1" \
-    -maxdepth 1 -mindepth 1 \
-    -name .git -prune -o -name .svn -prune -o -type d \
-    -a -not \( $(_fzf_ignore $FZF_COMPLETION_IGNORE) \) \
-    -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
+  if [ -n "$FZF_COMPGEN_DIR_COMMAND" ]; then
+    eval "$FZF_COMPGEN_DIR_COMMAND"
+  else
+    command find -L "$1" \
+      -maxdepth 1 -mindepth 1 \
+      -name .git -prune -o -name .svn -prune -o -type d \
+      -a -not -path "$1" -print 2> /dev/null | sed 's@^\./@@'
+  fi
 }
 
 # To redraw line after fzf closes (printf '\e[5n')
