@@ -98,7 +98,6 @@ __fzfcmd_complete() {
 # Path completion
 # Takes just two arguments -- the compgen command, and fzf options
 __fzf_generic_path_completion() {
-  echo "FZF generic!"
   local cur base dir leftover matches trigger cmd fzf opts varcomp generator
   fzf="$(__fzfcmd_complete)"
   cmd="${COMP_WORDS[0]//[^A-Za-z0-9_=]/_}"
@@ -158,7 +157,6 @@ __fzf_generic_path_completion() {
 
   # Trigger not active, defer to default completion
   else
-    echo "Dynamic path!!!"
     shift
     shift
     _fzf_handle_dynamic_completion "$cmd" "$@"
@@ -167,7 +165,6 @@ __fzf_generic_path_completion() {
 
 # Generic completion, suitable for more special cases
 _fzf_complete() {
-  echo "FZF complete!"
   local cur selected trigger cmd fzf post
   post="$(caller 0 | awk '{print $2}')_post"   # the func name, with a _post suffix
   type -t "$post" > /dev/null 2>&1 || post=cat # empty
@@ -193,7 +190,6 @@ _fzf_complete() {
 
   # Trigger not active, defer to default completion
   else
-    echo "Dynamic complete!!!"
     shift
     _fzf_handle_dynamic_completion "$cmd" "$@"
   fi
@@ -342,7 +338,7 @@ _fzf_function_completion() {
 _fzf_command_completion() {
   [ -r $HOME/.fzf.commands ] || compgen -c | grep -v '[!.:{}]' >$HOME/.fzf.commands
   _fzf_complete '+m' "$@" < <(cat \
-    <(find . -mindepth 1 -maxdepth 1 -type f -executable -print) \
+    <(find -L . -mindepth 1 -maxdepth 1 -type f -executable -print) \
     <(tac $HOME/.fzf.commands | sed 's/$/ /') \
   )
 }
@@ -406,80 +402,18 @@ __fzf_defc() {
   fi
 }
 
-# Magical completion bypass
-# function _complete0 () {
-#     local -a _cmds
-#     local -A _seen
-#     local _path=$PATH _ii _xx _cc _cmd _short
-#     local _aa=( ${READLINE_LINE} )
-#
-#     if [[ -f ~/.complete.d/"${_aa[0]}" && -x  ~/.complete.d/"${_aa[0]}" ]]; then
-#         # user-provided hook
-#         _cmds=( $( ~/.complete.d/"${_aa[0]}" ) )
-#     elif [[ -x  ~/.complete.d/DEFAULT ]]; then
-#         _cmds=( $( ~/.complete.d/DEFAULT ) )
-#     else
-#         # compgen -c for default "command" complete
-#         _cmds=( $(PATH=$_path compgen -o bashdefault -o default -c ${_aa[0]}) )
-#     fi
-#
-#     # Remove duplicates, cache shortest name
-#     _short="${_cmds[0]}"
-#     _cc=${#_cmds[*]} # NB removing indexes inside loop
-#     for (( _ii=0 ; _ii<$_cc ; _ii++ )); do
-#         _cmd=${_cmds[$_ii]}
-#         [[ -n "${_seen[$_cmd]}" ]] && unset _cmds[$_ii]
-#         _seen[$_cmd]+=1
-#         (( ${#_short} > ${#_cmd} )) && _short="$_cmd"
-#     done
-#     _cmds=( "${_cmds[@]}" )  ## recompute contiguous index
-#
-#     # Find common prefix
-#     declare -a _prefix=()
-#     for (( _xx=0; _xx<${#_short}; _xx++ )); do
-#         _prev=${_cmds[0]}
-#         for (( _ii=0 ; _ii<${#_cmds[*]} ; _ii++ )); do
-#             _cmd=${_cmds[$_ii]}
-#              [[ "${_cmd:$_xx:1}" != "${_prev:$_xx:1}" ]] && break
-#             _prev=$_cmd
-#         done
-#         [[ $_ii -eq ${#_cmds[*]} ]] && _prefix[$_xx]="${_cmd:$_xx:1}"
-#     done
-#     printf -v _short "%s" "${_prefix[@]}"  # flatten
-#
-#     # Emulate completion list of matches
-#     if [[ ${#_cmds[*]} -gt 1 ]]; then
-#         for (( _ii=0 ; _ii<${#_cmds[*]} ; _ii++ )); do
-#             _cmd=${_cmds[$_ii]}
-#             [[ -n "${_seen[$_cmds]}" ]] && printf "%-12s " "$_cmd"
-#         done | sort | fmt -w $((COLUMNS-8)) | column -tx
-#         # fill in shortest match (prefix)
-#         printf -v READLINE_LINE "%s" "$_short"
-#         READLINE_POINT=${#READLINE_LINE}
-#     fi
-#     # Exactly one match
-#     if [[ ${#_cmds[*]} -eq 1 ]]; then
-#         _aa[0]="${_cmds[0]}"
-#         printf -v READLINE_LINE "%s " "${_aa[@]}"
-#         READLINE_POINT=${#READLINE_LINE}
-#     else
-#         : # nop
-#     fi
-# }
-#
-# bind -x '"\C-i":_complete0'
-
 # Anything
 complete -D -F _fzf_path_completion -o nospace -o default -o bashdefault
-complete -E -F _fzf_command_completion -o default -o bashdefault
 # __fzf_defc "$cmd" _fzf_path_completion "-o default -o bashdefault"  # original
+
+# Commands
+complete -E -F _fzf_command_completion -o nospace -o default -o bashdefault
 
 # Directory
 for cmd in $d_cmds; do
   __fzf_defc "$cmd" _fzf_dir_completion "-o nospace -o dirnames"
   # complete -F _fzf_dir_completion -o nospace -o dirnames "$cmd"  # custom
 done
-
 
 # Remove old stuff
 unset cmd d_cmds a_cmds x_cmds
