@@ -1,4 +1,5 @@
 .vimsession
+completion.orig.bash
 bin/fzf
 bin/fzf.exe
 target
