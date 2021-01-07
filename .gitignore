@@ -1,6 +1,7 @@
 .vimsession
 bin/fzf
 bin/fzf.exe
+dist
 target
 pkg
 Gemfile.lock
@@ -8,3 +9,7 @@ Gemfile.lock
 doc/tags
 vendor
 gopath
+*.zwc
+fzf
+tmp
+*.patch
