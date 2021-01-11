@@ -314,17 +314,15 @@ _fzf_complete() {
 ###########################################################
 # Completion functions
 ###########################################################
-# Generic path completion
 _fzf_path_completion() {
   __fzf_generic_path_completion _fzf_compgen_path "-m" "$@"
 }
 
-# Directory name completion
 _fzf_dir_completion() {
   __fzf_generic_path_completion _fzf_compgen_dir "+m" "$@"
 }
 
-_fzf_complete_kill() {
+_fzf_kill_completion() {
   local trigger=${FZF_COMPLETION_TRIGGER-'**'}
   local cur="${COMP_WORDS[COMP_CWORD]}"
   if [[ -z "$cur" ]]; then
@@ -463,7 +461,7 @@ for cmd in $d_cmds; do
 done
 
 # Kill completion (supports empty completion trigger)
-complete -F _fzf_complete_kill -o default -o bashdefault kill
+complete -F _fzf_kill_completion -o default -o bashdefault kill
 
 unset cmd d_cmds a_cmds
 
@@ -482,9 +480,9 @@ _fzf_setup_completion() {
     case "$kind" in
       # NOTE: Used to have -a for alias and -v for var but this caused weird
       # bug where builtin options get printed after selection.
+      # alias) __fzf_defc "$cmd" "$fn" "-a" ;;
       dir) __fzf_defc "$cmd" "$fn" "-o dirnames -o nospace" ;;
       var) __fzf_defc "$cmd" "$fn" "-o default -o nospace" ;;  # -v caused bug
-      # alias) __fzf_defc "$cmd" "$fn" "-a" ;;
       *)   __fzf_defc "$cmd" "$fn" "-o default -o bashdefault" ;;
     esac
   done
