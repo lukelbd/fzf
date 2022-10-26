@@ -510,7 +510,11 @@ try
     throw v:exception
   endtry
 
-  if !s:present(dict, 'dir')
+  " WARNING: This triggers 'lcd' via s:pushd() which causes vim to follow symbolic
+  " links and redefine current path. Add option to skip default assignment below.
+  " See: https://github.com/vim/vim/issues/4942.
+  " See: https://github.com/junegunn/fzf/issues/2572
+  if !s:present(dict, 'dir') && get(g:, 'fzf_require_dir', 1)
     let dict.dir = s:fzf_getcwd()
   endif
   if has('win32unix') && s:present(dict, 'dir')
